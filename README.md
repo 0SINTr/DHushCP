@@ -30,27 +30,109 @@ In environments where privacy and security are crucial, traditional messaging ap
 
 ## **How DHushCP Works**
 ### **Step-by-Step Communication Process**
-1. **Public Key Exchange:**
-   - The **Client** sends a `DHCP Discover` packet that contains its RSA public key fragmented across DHCP option fields.
-   - The **Server** responds with a `DHCP Offer` packet containing its own RSA public key, also fragmented across the same DHCP option fields.
-   - Both parties reassemble the fragments and extract each other’s public keys.
 
-2. **Message Input and Encryption:**
-   - Once the public keys are exchanged:
-     - The **Client** inputs a message to send to the Server.
-     - The **Server** inputs a message to send back to the Client.
-   - Each message is encrypted using the recipient’s public key to ensure only the intended recipient can decrypt it.
+### **1. Public Key Exchange:**
+#### **Client:**
+1. **Generates RSA Key Pair:**
+   - The client generates a fresh RSA public-private key pair.
+   
+2. **Sends `DHCP Discover` Packet:**
+   - The client embeds its RSA **public key** into multiple DHCP option fields (`43`, `60`, `77`, and `125`) as a series of fragmented data chunks.
+   - It then broadcasts a `DHCP Discover` packet, which includes these fragmented options.
 
-3. **Fragmented Message Transmission:**
-   - The encrypted messages are fragmented into smaller chunks and embedded into the DHCP Request and Ack packets.
-   - Each fragment is assigned a sequence number and the total number of fragments to facilitate reassembly.
+#### **Server:**
+1. **Receives `DHCP Discover` Packet:**
+   - The server receives the `DHCP Discover` packet, extracts, and reassembles the RSA **public key** sent by the client.
 
-4. **Message Reception and Decryption:**
-   - The **Server** receives the client’s `DHCP Request` packet, reassembles the fragments, decrypts the message, and displays it.
-   - The **Client** receives the server’s `DHCP Ack` packet, reassembles the fragments, decrypts the message, and displays it.
+2. **Generates RSA Key Pair:**
+   - The server generates its own RSA public-private key pair.
+   
+3. **Sends `DHCP Offer` Packet:**
+   - The server embeds its RSA **public key** into the same DHCP option fields (`43`, `60`, `77`, and `125`) and sends it back to the client in a `DHCP Offer` packet.
 
-5. **Secure Cleanup:**
-   - After both messages have been read, DHushCP sends a `DHCP Release` packet to indicate the end of communication, deletes all keys from memory, clears the screen, and prints a confirmation dot (`.`) before exiting.
+#### **Client:**
+- **Receives `DHCP Offer` Packet:**
+  - The client reassembles the server’s RSA **public key** from the fragmented options in the `DHCP Offer` packet.
+  
+### **2. Message Input and Encryption:**
+#### **Client:**
+1. **Prompts User for a Message:**
+   - After receiving the server’s public key, the client prompts the user to input a message to send to the server.
+   
+2. **Encrypts Message:**
+   - The client encrypts the input message using the **server’s public key** to ensure that only the server can decrypt and read the content.
+
+3. **Validates Message Size:**
+   - The client ensures that the encrypted message fits into the available DHCP options (`43`, `60`, `77`, and `125`). If the message is too large, the user is prompted to shorten it.
+
+#### **Server:**
+- **No action needed in this step** until it receives the client’s encrypted message in the next step.
+
+### **3. Fragmented Message Transmission:**
+#### **Client:**
+1. **Splits Encrypted Message into Fragments:**
+   - The client splits the encrypted message into smaller chunks, each fitting within the size constraints of the chosen DHCP options.
+   
+2. **Sends `DHCP Request` Packet:**
+   - The client embeds the fragments into the DHCP option fields (`43`, `60`, `77`, and `125`) of a `DHCP Request` packet and sends it to the server.
+
+#### **Server:**
+1. **Receives and Reassembles Fragments:**
+   - The server receives the `DHCP Request` packet, extracts the fragmented message from the DHCP options, and reassembles the complete encrypted message.
+
+2. **Decrypts the Message:**
+   - The server decrypts the message using its **private key**, and the content is displayed in plaintext on the terminal for the user.
+
+3. **Prompts User for a Response:**
+   - The server then prompts the user to input a response message to send back to the client.
+
+4. **Encrypts the Response Message:**
+   - The server encrypts its response using the **client’s public key**.
+
+### **4. Message Reception and Decryption:**
+#### **Server:**
+1. **Splits Encrypted Response into Fragments:**
+   - The server splits its encrypted response message into multiple chunks to fit into the available DHCP option fields.
+   
+2. **Sends `DHCP Ack` Packet:**
+   - The server embeds the fragments into the `DHCP Ack` packet and sends it to the client.
+
+#### **Client:**
+1. **Receives and Reassembles Fragments:**
+   - The client receives the `DHCP Ack` packet, extracts the fragments, and reassembles the complete encrypted response message.
+
+2. **Decrypts the Message:**
+   - The client decrypts the message using its **private key** and displays it in plaintext on the terminal.
+
+3. **Confirms Successful Reception:**
+   - The client waits for the user to confirm that they have read the server’s message before initiating the cleanup process.
+
+### **5. Secure Cleanup:**
+#### **Client-Side Cleanup:**
+1. **Sends a DHCP Release Packet**:
+   - The client sends a `DHCP Release` packet to formally indicate the end of the communication session.
+   
+2. **Deletes All Cryptographic Keys**:
+   - The client securely deletes its own RSA private key as well as the server's public key from memory to prevent any post-session data recovery.
+
+3. **Clears the Terminal Screen**:
+   - The screen is cleared to erase any visible trace of the communication session, including the displayed messages.
+
+4. **Prints a Confirmation Dot (`.`)**:
+   - A simple `.` is printed on the screen to indicate that the cleanup was successful and that the client has safely terminated the session.
+
+#### **Server-Side Cleanup:**
+1. **Receives the DHCP Release Packet**:
+   - The server waits for and receives the `DHCP Release` packet from the client, acknowledging that the communication has ended.
+
+2. **Deletes All Cryptographic Keys**:
+   - The server securely deletes its own RSA private key as well as the client's public key from memory, ensuring that no sensitive data remains.
+
+3. **Clears the Terminal Screen**:
+   - The terminal screen is cleared to erase all displayed content, preventing any residual information from being recovered.
+
+4. **Prints a Confirmation Dot (`.`)**:
+   - Similar to the client, the server prints a `.` to indicate that the cleanup process was successfully completed and that the server session has safely ended.
 
 ## **Features**
 1. **Stealth Communication Using DHCP:**
