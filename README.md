@@ -87,47 +87,48 @@ In environments where privacy and security are crucial, traditional messaging ap
 
 ## 📏 **Calculating Maximum Message Length**
 
-DHushCP uses multiple DHCP option fields to embed encrypted messages. To estimate the maximum plaintext message size that can be securely transmitted, we need to consider the available space in these DHCP options and the RSA encryption overhead.
+**DHushCP** uses multiple DHCP option fields to embed encrypted messages. To estimate the maximum plaintext message size that can be securely transmitted, we need to consider the available space in these DHCP options and the RSA encryption overhead.
 
 ### 🧮 **Step-by-Step Calculation**
 
 1. **Total Available Space Per DHCP Option Field**
-   - DHCP options are defined to have a maximum capacity of **255 bytes** each.
-   - However, each DHCP option field has **4 bytes of metadata overhead**:
+   - Each DHCP option field has a **maximum capacity of 255 bytes**.
+   - However, a portion of each field is used for metadata:
      - **Option Number**: 1 byte
      - **Length Field**: 1 byte
-     - **Fragmentation Metadata**: 2 bytes (1 for sequence number, 1 for total fragments)
+     - **Fragmentation Metadata**: 2 bytes (1 byte for sequence number, 1 byte for total fragments)
 
-   - **Usable space per option field**:  
-   \[
-   255 - 4 = 251 \, \text{bytes}
-   \]
+   - **Usable space per DHCP option field**:
+     ```
+     255 bytes - 4 bytes = 251 bytes
+     ```
 
-2. **Total Space Across Multiple DHCP Option Fields**
-   - DHushCP utilizes **four different DHCP option fields** (`43`, `60`, `77`, and `125`) for message embedding.
+2. **Total Space Across All Used DHCP Option Fields**
+   - **DHushCP** utilizes **four different DHCP option fields** (`43`, `60`, `77`, and `125`).
    
-   - **Total usable space across 4 options**:  
-   \[
-   251 \, \text{bytes/option} \times 4 \, \text{options} = 1004 \, \text{bytes}
-   \]
+   - **Total usable space across 4 options**:
+     ```
+     251 bytes/option × 4 options = 1004 bytes
+     ```
 
 3. **Impact of RSA Encryption on Message Size**
-   - DHushCP uses **RSA-2048** encryption for secure message exchange.
-   - For **RSA-2048** with **OAEP padding**, the maximum plaintext size per RSA block is **245 bytes**.
-   - After encryption, each RSA block becomes **256 bytes**.
-   
-   - **Number of complete RSA blocks** that fit within the available DHCP space:  
-   \[
-   \text{Number of RSA blocks} = \left\lfloor \frac{1004}{256} \right\rfloor = 3 \, \text{RSA blocks}
-   \]
+   - **DHushCP** uses **RSA-2048** encryption for secure message exchange.
+   - For RSA-2048 with **OAEP padding**, the maximum plaintext size per RSA block is **245 bytes**.
+   - After encryption, each RSA block expands to **256 bytes**.
+
+   - **Number of complete RSA blocks** that fit within the available DHCP space:
+     ```
+     Total DHCP Space: 1004 bytes
+     RSA Block Size: 256 bytes
+     Number of RSA blocks: 1004 bytes ÷ 256 bytes = 3 blocks
+     ```
 
 4. **Calculating the Maximum Plaintext Message Size**
    - Each RSA block can hold a maximum of **245 bytes** of plaintext.
    - For **3 RSA blocks**, the maximum plaintext message size is:
-   
-   \[
-   245 \, \text{bytes/block} \times 3 \, \text{blocks} = 735 \, \text{bytes}
-   \]
+     ```
+     245 bytes/block × 3 blocks = 735 bytes
+     ```
 
 ### 📊 **Summary of Message Length Calculations**
 - **Usable Space per DHCP Option**: 251 bytes
@@ -140,7 +141,7 @@ DHushCP uses multiple DHCP option fields to embed encrypted messages. To estimat
 - If the message is larger, the number of fragments and corresponding overhead increase, reducing the effective message size.
 - If additional DHCP option fields are used, the message size can be increased accordingly.
 
-By following this calculation, users can estimate how long their plaintext message can be before encryption to fit within the limits of the DHCP options used by DHushCP.
+By following this calculation, users can estimate how long their plaintext message can be before encryption to fit within the limits of the DHCP options used by **DHushCP**.
 
 ## 💡 **Summary of Features**
 1. **Stealth Communication Using DHCP:**
