@@ -122,7 +122,7 @@ def handle_request(packet):
             )
 
             # Ensure the message can fit into the selected DHCP options
-            max_fragment_size = 253  # Max payload size per fragment (255 bytes - 2 bytes metadata)
+            max_fragment_size = 251  # Max payload size per fragment (255 bytes - 4 bytes metadata)
             if len(encrypted_response) > len(["43", "60", "77", "125"]) * max_fragment_size:
                 print("Message is too long to fit in the DHCP options. Please enter a shorter message.")
                 sys.exit(1)
