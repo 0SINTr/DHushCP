@@ -1,2 +1,0 @@
-cryptography
-python3-scapy
