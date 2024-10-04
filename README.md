@@ -173,18 +173,18 @@ In environments where privacy and security are crucial, traditional messaging ap
 2. **Install Required Dependencies:**
    ```bash
    sudo apt update
-   sudo apt install python3-scapy
-   pip3 install cryptography
+   pip install cryptography
+   pip install scapy
    ```
 
 3. **Run the Server and Client:**
 - Start the server on one machine:
    ```bash
-   sudo python3 server.py
+   sudo python server.py
    ```
 - Start the client on the other machine:
    ```bash
-   sudo python3 client.py
+   sudo python client.py
    ```
 
 4. **Message Exchange and Cleanup:**
@@ -212,9 +212,3 @@ DHushCP utilizes principles of **network steganography** by embedding encrypted 
 
 ## **Disclaimer**
 This tool is intended for educational and research purposes only. The developers are not responsible for any misuse or illegal activities conducted with this tool. Always obtain proper authorization before using DHushCP in any network.
-
-
-
-
-
-
