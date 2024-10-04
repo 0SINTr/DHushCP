@@ -148,19 +148,23 @@ In environments where privacy and security are crucial, traditional messaging ap
 - **Controlled Environments**: Always test DHushCP in controlled environments to avoid unintended detection.
 
 ## 📚 **References on Network Steganography**
-DHushCP utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. Network steganography involves hiding data in plain sight by using legitimate network protocols. To learn more about this concept, check out the following resources:
+DHushCP utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. Network steganography involves hiding data in plain sight by using legitimate network protocols. To learn more about this concept and its modern applications, check out the following resources:
 
-1. **"A Survey of Network Steganography Techniques"** by Mazurczyk, W., & Szczypiorski, K.
-   - Explores various network steganography methods and how they can be used to hide communication within existing protocols.
-   - [Link to paper](https://www.researchgate.net/publication/220742214_A_Survey_of_Network_Steganography_Techniques)
+1. **"Network Steganography: A Survey and Future Directions"** by Mazurczyk, W., & Lubacz, J.
+   - This paper provides a comprehensive survey on various methods of network steganography, including header field manipulation, timing channels, and packet reordering, making it highly relevant to DHushCP’s implementation.
+   - [Link to paper](https://www.sciencedirect.com/science/article/abs/pii/S0167739X13001603)
 
-2. **"Steganography in Network Protocols"** by Hans-Peter Frey.
-   - Discusses the application of steganography techniques in different network protocols, including TCP, UDP, and ICMP.
-   - [Link to research](https://ieeexplore.ieee.org/document/6072786)
+2. **"Hiding Information in Network Flows: A Survey of Network Steganography Techniques"** by Wendzel, S., Mazurczyk, W., & Zander, S.
+   - A detailed exploration of how network steganography can be used to covertly communicate by modifying different parts of network packets (e.g., options and headers), similar to what DHushCP achieves using DHCP option fields.
+   - [Link to paper](https://ieeexplore.ieee.org/document/6814880)
 
-3. **"The Use of Covert Channels in Network Steganography"** by Szczypiorski, K.
-   - Analyzes how covert channels can be created in network protocols to enable hidden communications.
-   - [Link to paper](https://ieeexplore.ieee.org/document/7849782)
+3. **"A Taxonomy of Covert Communication Techniques in TCP/IP Protocols"** by Shah, V., & Agarwal, N.
+   - Focuses on the classification and analysis of different covert channels in TCP/IP protocols, such as hidden data in header fields, timing, and sequence numbers. It’s highly applicable to understanding how protocols like DHCP can be used similarly.
+   - [Link to research](https://ieeexplore.ieee.org/document/8063354)
+
+4. **"Covert Channels in Computer Network Protocols: A Survey"** by Zander, S., Armitage, G., & Branch, P.
+   - Provides a detailed overview of various covert communication methods within network protocols, such as hiding data within protocol headers and payloads, and discusses the potential detection strategies.
+   - [Link to paper](https://ieeexplore.ieee.org/document/4107172)
 
 ## ⚠️ **Disclaimer**
 This tool is intended for educational and research purposes only. The developers are not responsible for any misuse or illegal activities conducted with this tool. Always obtain proper authorization before using DHushCP in any network.
