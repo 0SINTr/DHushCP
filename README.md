@@ -7,17 +7,17 @@
 ## 📖 Table of Contents
 
 - [🛡️ DHushCP: Secure Covert Communication via DHCP](#🛡️-dhushcp-secure-covert-communication-via-dhcp)
-  - [🔍 Overview](https://github.com/0SINTr/DHushCP?tab=readme-ov-file#-overview)
-  - [🚀 Features](https://github.com/0SINTr/DHushCP?tab=readme-ov-file#-features)
-  - [🔐 Security Highlights](#🔐-security-highlights)
-  - [📈 Advantages](#📈-advantages)
+  - [🔍 Overview](#-overview)
+  - [🚀 Features](#-features)
+  - [📈 Advantages](#-advantages)
   - [🔄 Communication Flow](#-communication-flow)
-  - [💡 Real-Life Use Case](#💡-real-life-use-case)
-  - [🖥️ System Requirements](#🖥️-system-requirements)
-  - [🛠️ Installation & Setup](#🛠️-installation--setup)
-  - [📚 Usage](#📚-usage)
-  - [⚠️ Disclaimer](#⚠️-disclaimer)
-  - [📜 License](#📜-license)
+  - [💡 Real-Life Use Case](#%EF%B8%8F-example-use-case-for-dhushcp)
+  - [🖥️ System Requirements](#%EF%B8%8F-system-requirements)
+  - [🛠️ Installation & Setup](#%EF%B8%8F-installation--setup)
+  - [📚 Usage](#-usage)
+  - [🧮 Available Message Space Calculation](#-available-message-space-calculation)
+  - [⚠️ Disclaimer](#%EF%B8%8F-disclaimer)
+  - [📜 License](#-license)
 
 ## 🔍 Overview
 
