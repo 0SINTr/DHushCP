@@ -7,11 +7,11 @@
 ## 📖 Table of Contents
 
 - [🛡️ DHushCP: Secure Covert Communication via DHCP](#🛡️-dhushcp-secure-covert-communication-via-dhcp)
-  - [🔍 Overview](##-🔍-Overview)
-  - [🚀 Features](#🚀-features)
+  - [🔍 Overview](https://github.com/0SINTr/DHushCP?tab=readme-ov-file#-overview)
+  - [🚀 Features](https://github.com/0SINTr/DHushCP?tab=readme-ov-file#-features)
   - [🔐 Security Highlights](#🔐-security-highlights)
   - [📈 Advantages](#📈-advantages)
-  - [🔄 Communication Flow](#🔄-communication-flow)
+  - [🔄 Communication Flow](#-communication-flow)
   - [💡 Real-Life Use Case](#💡-real-life-use-case)
   - [🖥️ System Requirements](#🖥️-system-requirements)
   - [🛠️ Installation & Setup](#🛠️-installation--setup)
