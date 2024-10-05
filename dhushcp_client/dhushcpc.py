@@ -8,7 +8,6 @@ import math
 
 # Automatically detect the wireless interface
 def get_wireless_interface():
-    """Automatically detect the active wireless interface name."""
     try:
         result = subprocess.run(['iw', 'dev'], capture_output=True, text=True)
         lines = result.stdout.splitlines()
@@ -25,14 +24,12 @@ def get_wireless_interface():
 
 # Check if the script is running with sudo privileges
 def check_sudo():
-    """Check if the script is running with sudo privileges."""
     if os.geteuid() != 0:
         print("This script requires sudo privileges. Please run it with `sudo`.")
         sys.exit(1)
 
 # Release any existing IP on the interface using `ip` command
 def check_and_release_ip(interface):
-    """Check if the interface has an assigned IP and release it using the `ip` command."""
     try:
         result = subprocess.run(['ip', '-4', 'addr', 'show', interface], capture_output=True, text=True)
         if "inet " in result.stdout:
@@ -48,26 +45,19 @@ def check_and_release_ip(interface):
 # Generate RSA Keys for the Client
 client_private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 client_public_key = client_private_key.public_key()
-
-# Convert Public Key to PEM format for sharing
-client_public_key_pem = client_public_key.public_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PublicFormat.SubjectPublicKeyInfo
-)
+client_public_key_pem = client_public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
 
 # Function to fragment a message into smaller chunks with sequence numbers and metadata
 def fragment_message_with_sequence(message, chunk_size):
-    """Fragment a message into smaller chunks with sequence numbers."""
     fragments = []
     total_fragments = math.ceil(len(message) / chunk_size)
     for seq_num, i in enumerate(range(0, len(message), chunk_size)):
         fragment = message[i:i + chunk_size]
-        fragments.append((seq_num, total_fragments, fragment))  # (sequence_number, total_fragments, fragment)
+        fragments.append((seq_num, total_fragments, fragment))
     return fragments
 
 # Function to embed message chunks into selected DHCP options
 def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", "125"]):
-    """Embed message fragments into selected DHCP options."""
     options = []
     for i, (seq_num, total_fragments, fragment) in enumerate(fragments):
         if i < len(option_list):
@@ -77,7 +67,6 @@ def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", 
 
 # Function to get complete message input from the user, with byte-based limit handling
 def get_complete_message(prompt, max_bytes=735):
-    """Get a complete message input from the user with byte-based limit handling."""
     print(f"{prompt} (Type 'END' on a new line to finish. Maximum {max_bytes} bytes or 500 characters recommended.)")
     user_message = ""
     while True:
@@ -87,24 +76,21 @@ def get_complete_message(prompt, max_bytes=735):
         if len((user_message + line + " ").encode('utf-8')) > max_bytes:
             print(f"Byte limit of {max_bytes} exceeded! Message truncated.")
             while len(user_message.encode('utf-8')) > max_bytes:
-                user_message = user_message[:-1]  # Remove characters until it fits
+                user_message = user_message[:-1]
             break
         user_message += line + " "
     return user_message.strip()
 
 # Function to wait for a strict Enter confirmation
 def wait_for_enter(prompt="Press Enter to confirm you read the message..."):
-    """Wait for a strict Enter confirmation to proceed."""
     while True:
         user_input = input(prompt)
-        if user_input == "":  # Enter was pressed without any other input
+        if user_input == "":
             break
         print("Please press only Enter to confirm.")
-        continue
 
 # Function to perform cleanup after reading the message
 def perform_cleanup():
-    """Perform cleanup after reading the message."""
     global client_private_key, server_public_key
     client_private_key = None
     server_public_key = None
@@ -113,13 +99,12 @@ def perform_cleanup():
 
 # Function to reassemble message from fragmented DHCP options
 def reassemble_message_from_options(options):
-    """Reassemble message fragments from DHCP options."""
     fragments = {}
     for opt in options:
         if opt[0] in ["43", "60", "77", "125"]:
-            seq_num = opt[1][0]  # Sequence number
-            total_fragments = opt[1][1]  # Total fragments
-            fragment_data = opt[1][2:]  # Fragment data
+            seq_num = opt[1][0]
+            total_fragments = opt[1][1]
+            fragment_data = opt[1][2:]
             fragments[seq_num] = fragment_data
     if len(fragments) == total_fragments:
         return b"".join([fragments[i] for i in sorted(fragments)])
@@ -129,10 +114,10 @@ def reassemble_message_from_options(options):
 # Placeholder for Server's public key
 server_public_key = None
 
-# Check and release IP on the wireless interface
-check_sudo()  # Ensure script is run with sudo
-wifi_interface = get_wireless_interface()  # Detect the correct wireless interface
-check_and_release_ip(wifi_interface)  # Release any IP addresses to avoid conflicts
+# Initial setup
+check_sudo()
+wifi_interface = get_wireless_interface()
+check_and_release_ip(wifi_interface)
 
 # Create and send a DHCP Discover packet with the fragmented Client's Public Key
 client_mac = get_if_hwaddr(wifi_interface)
@@ -150,7 +135,7 @@ discover = (
 print("Sending DHCP Discover packet with fragmented Client's Public Key")
 sendp(discover, iface=wifi_interface)
 
-# Listen for DHCP Offer and respond with DHCP Request (unicast)
+# Listen for DHCP Offer and handle accordingly
 def handle_offer(packet):
     global server_public_key
 
@@ -182,11 +167,10 @@ def handle_offer(packet):
                         padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
                     )
 
-                    # Fragment the encrypted message and send in DHCP Request
+                    # Fragment the encrypted message and embed in DHCP Request
                     encrypted_fragments = fragment_message_with_sequence(encrypted_message, 251)
                     fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments)
 
-                    # Create and send DHCP Request packet with fragmented encrypted message
                     request = (
                         Ether(src=client_mac, dst=packet[Ether].src) /
                         IP(src="0.0.0.0", dst=packet[IP].src) /
@@ -204,3 +188,7 @@ def handle_offer(packet):
 
 # Listen for DHCP Offer and handle accordingly
 sniff(filter="udp and (port 67 or 68)", prn=handle_offer, iface=wifi_interface, timeout=60)
+
+# Wait for user to confirm they read the message and perform cleanup
+wait_for_enter()
+perform_cleanup()
