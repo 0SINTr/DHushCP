@@ -1,287 +1,178 @@
-# 🕵️‍♂️ **DHushCP: Covert Communication Using DHCP**
+# 🛡️ DHushCP: Secure Covert Communication via DHCP 🛡️
 
-## 📝 **Summary**
-**DHushCP** is a covert communication tool that uses the DHCP protocol to enable secure and hidden message exchange between two machines. **DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. Network steganography involves hiding data in plain sight by using legitimate network protocols.
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)
+![GitHub Issues](https://img.shields.io/github/issues/yourusername/DHushCP.svg)
+![GitHub Forks](https://img.shields.io/github/forks/yourusername/DHushCP.svg)
+![GitHub Stars](https://img.shields.io/github/stars/yourusername/DHushCP.svg)
 
-By embedding encrypted messages into DHCP option fields, **DHushCP** establishes a secure communication channel that blends seamlessly into regular network traffic, making it difficult to detect. This tool is ideal for scenarios where privacy and stealth are paramount, such as discreet communications in public places or controlled environments.
+## 📖 Table of Contents
 
-With features like RSA public-key encryption, message fragmentation, custom DHCP options for server validation, and automatic cleanup, **DHushCP** ensures that communication is not only secure but also leaves no traces behind once the session is completed.
+- [🛡️ DHushCP: Secure Covert Communication via DHCP](#🛡️-dhushcp-secure-covert-communication-via-dhcp)
+  - [🔍 Overview](#🔍-overview)
+  - [🚀 Features](#🚀-features)
+  - [🔐 Security Highlights](#🔐-security-highlights)
+  - [📈 Advantages](#📈-advantages)
+  - [🔄 Communication Flow](#🔄-communication-flow)
+  - [💡 Real-Life Use Case](#💡-real-life-use-case)
+  - [🖥️ System Requirements](#🖥️-system-requirements)
+  - [🛠️ Installation & Setup](#🛠️-installation--setup)
+  - [📚 Usage](#📚-usage)
+  - [⚠️ Disclaimer](#⚠️-disclaimer)
+  - [🤝 Contributing](#🤝-contributing)
+  - [📜 License](#📜-license)
 
-## 🔒 **Why Use DHushCP?**
-**DHushCP** provides a **covert communication mechanism** designed for environments where privacy and discretion are crucial. Here are some of the key features that set it apart:
+## 🔍 Overview
 
-1. **Protocol-Based Stealth**: Utilizes standard DHCP packets to hide communication, making it appear as typical network traffic.
-2. **Direct Peer-to-Peer Messaging**: Creates a direct communication channel between two machines without the need for a Wi-Fi network.
-3. **Short Message Exchange**: Ideal for exchanging quick, sensitive information without leaving traces.
-4. **Ephemeral Communication**: No session or state is maintained; once the message is exchanged, everything is cleaned up and removed.
-5. **Automatic Interface Detection and Setup**: Automatically identifies the active wireless interface and manages IP addresses for smooth execution.
-6. **RSA Encryption for Security**: All messages are encrypted using RSA, ensuring confidentiality even if packets are intercepted.
-7. **Fragmented Message Handling**: Supports message fragmentation across multiple DHCP options for seamless reassembly.
+**DHushCP** is a sophisticated framework designed to facilitate **secure covert communication** between a client and server using standard **DHCP (Dynamic Host Configuration Protocol)** packets. By embedding cryptographic elements within DHCP options, DHushCP enables hidden message exchanges over existing network infrastructures without raising suspicion.
 
-### 🔑 **Key Security and Privacy Features**
-#### Prerequisites
-1. **Automatic Wireless Interface Detection:**
-   - The tool automatically detects the active wireless interface (e.g., `wlan0`, `wlp2s0`) on both client and server machines, eliminating the need for manual configuration. This ensures the correct interface is always selected, even if the system uses non-standard names.
+## 🚀 Features
 
-2. **Dynamic IP Address Management:**
-- **DHushCP** uses the `ip addr flush` command to release any pre-existing IP addresses on the selected interface before starting DHCP communication. This prevents IP conflicts and ensures smooth operation without interference from the operating system's network stack.
+- **End-to-End Encryption:** Utilizes RSA asymmetric encryption to secure messages between client and server.
+- **Session Management:** Generates unique session IDs to maintain communication integrity and prevent message mixing.
+- **Message Fragmentation:** Efficiently fragments messages to fit within DHCP option constraints, ensuring seamless transmission.
+- **Automated Cleanup:** Automatically handles session termination and cleans up sensitive data upon completion.
+- **User-Friendly Interface:** Interactive prompts guide users through message input and confirmation steps.
+- **Checksum Verification:** Implements SHA-256 checksums to ensure data integrity and authenticity.
 
-3. **Sudo Privilege Check**
-- Both the client and server scripts include a sudo privilege check to ensure they have the necessary permissions to manage network interfaces and send raw packets. If the scripts are not run with `sudo`, they will notify the user and exit safely.
+## 🔐 Security Highlights
 
-#### Operation
-1. **Ephemeral Network Traffic:**
-   - **DHushCP** leverages broadcast-based DHCP packets to exchange messages, leaving no visible network connections and blending into normal network noise.
+- **Asymmetric Cryptography:** Ensures that only the intended recipient can decrypt the messages using their private key.
+- **Checksum Validation:** Protects against data tampering and corruption by verifying message integrity.
+- **Automated Key Management:** Generates and manages RSA keys securely within the scripts, minimizing exposure.
+- **Session Isolation:** Unique session IDs prevent unauthorized access and maintain communication boundaries.
+- **Secure Cleanup:** Removes sensitive information from memory and attempts to clear system logs post-session.
 
-2. **Stealthy Communication Using Standard Protocols:**
-   - By using DHCP, which is essential for network operation, **DHushCP** avoids detection by intrusion detection systems (IDS) and firewalls that are configured to monitor more active communication protocols.
+## 📈 Advantages
 
-3. **RSA Public-Key Encryption:**
-   - **DHushCP** exchanges RSA public keys during the initial handshake and encrypts messages using the recipient’s public key, ensuring that only the intended recipient can read the content.
+- **Stealthy Communication:** Leverages common network protocols (DHCP) to facilitate hidden message exchanges, reducing the likelihood of detection.
+- **No Additional Infrastructure:** Operates over existing network setups without the need for specialized hardware or software.
+- **Flexible Integration:** Easily integrates into various network environments, making it adaptable for different use cases.
+- **User Control:** Empowers users with interactive prompts, ensuring that communication is deliberate and controlled.
+- **Robust Security:** Combines multiple security mechanisms to safeguard data against interception and unauthorized access.
 
-4. **Fragmented Message Embedding:**
-   - Encrypted messages are split into smaller fragments and embedded across multiple DHCP option fields (`43`, `60`, `77`, and `125`), making it difficult to reconstruct the entire message.
+## 🔄 Communication Flow
 
-5. **Custom DHCP Option for Server Validation:**
-   - To prevent interference from other DHCP servers in the vicinity, **DHushCP** uses a **custom DHCP option** (`224`) that serves as a unique identifier. This ensures that the client only accepts offers from the intended **DHushCP** server and ignores any other DHCP Offers that might be present.
-
-6. **Automatic Secure Cleanup:**
-   - After communication ends, **DHushCP** deletes the RSA keys from memory, clears the terminal screen, and exits, leaving no traces on the devices.
-
-## 🔧 **How DHushCP Works**
-### 🗂️ **Step-by-Step Communication Process**
-
-#### 1️⃣ **Public Key Exchange**
-- **Client:**
-  - Generates a fresh RSA public-private key pair.
-  - Sends a `DHCP Discover` packet containing its public key, split across multiple DHCP options, along with a **custom DHCP option** (`224`) to uniquely identify the **DHushCP** session.
-
-- **Server:**
-  - Receives the `DHCP Discover` packet, validates the **custom DHCP option** (`224`), and reassembles the client’s public key.
-  - Generates its own RSA key pair.
-  - Sends a `DHCP Offer` packet containing its own public key, split across DHCP options, and includes the **custom DHCP option** (`224`).
-
-- **Client:**
-  - Receives and reassembles the server’s public key from the fragmented options in the `DHCP Offer` packet.
-  - Validates the **custom DHCP option** to ensure that the `DHCP Offer` is from the intended **DHushCP** server.
-
-#### 2️⃣ **Message Input and Encryption**
-- **Client:**
-  - Prompts the user for a message to send to the server.
-  - The user must enter the entire message on a single line and type `END` to finish the input.
-  - Encrypts the message using the **server’s public key**.
-  - Validates the encrypted message size to ensure it can fit into the available DHCP options.
-
-#### 3️⃣ **Fragmented Message Transmission**
-- **Client:**
-  - Splits the encrypted message into smaller fragments and embeds them into the DHCP options.
-  - Sends a `DHCP Request` packet containing these message fragments.
-
-- **Server:**
-  - Receives and reassembles the encrypted message from the DHCP options.
-  - Decrypts the message using its **private key**.
-  - Prompts the user for a response message to send back.
-
-#### 4️⃣ **Message Reception and Decryption**
-- **Server:**
-  - Splits its encrypted response into fragments and sends them in a `DHCP Ack` packet.
-
-- **Client:**
-  - Receives and reassembles the response.
-  - Decrypts the message using its **private key** and displays it.
-
-#### 5️⃣ **Secure Cleanup**
-- **Client:**
-  - Sends a `DHCP Release` packet to formally indicate the end of the communication.
-  - Deletes its own RSA private key and the server’s public key from memory.
-  - Clears the terminal screen and prints a confirmation dot (`.`).
-
-- **Server:**
-  - Receives the `DHCP Release` packet from the client.
-  - Deletes its own RSA private key and the client’s public key from memory.
-  - Clears the terminal screen and prints a confirmation dot (`.`).
-
-## 📏 **Calculating Maximum Message Length**
-
-**DHushCP** uses multiple DHCP option fields to embed encrypted messages. To estimate the maximum plaintext message size that can be securely transmitted, we need to consider the available space in these DHCP options and the RSA encryption overhead.
-
-### 🧮 **Step-by-Step Calculation**
-
-1. **Total Available Space Per DHCP Option Field**
-   - Each DHCP option field has a **maximum capacity of 255 bytes**.
-   - However, a portion of each field is used for metadata:
-     - **Option Number**: 1 byte
-     - **Length Field**: 1 byte
-     - **Fragmentation Metadata**: 2 bytes (1 byte for sequence number, 1 byte for total fragments)
-
-   - **Usable space per DHCP option field**:
-     ```
-     255 bytes - 4 bytes = 251 bytes
-     ```
-
-2. **Total Space Across All Used DHCP Option Fields**
-   - DHushCP utilizes **four different DHCP option fields** (`43`, `60`, `77`, and `125`).
+1. **Initial Exchange:**
+   - **Client:**
+     - Generates a unique session ID.
+     - Detects and selects the active wireless interface.
+     - Releases any existing IP address on the interface.
+     - Generates RSA key pair (public/private keys).
+     - Sends a DHCP Discover packet embedding its public key, a DHushCP-ID (option 224), and the session ID (option 225).
    
-   - **Total usable space across 4 options**:
-     ```
-     251 bytes/option × 4 options = 1004 bytes
-     ```
+   - **Server:**
+     - Receives the DHCP Discover packet.
+     - Extracts and reassembles the client's public key.
+     - Generates its own RSA key pair.
+     - Sends a DHCP Offer packet embedding its public key, DHushCP-ID, and the same session ID.
 
-3. **Impact of RSA Encryption on Message Size**
-   - DHushCP uses **RSA-2048** encryption for secure message exchange.
-   - For RSA-2048 with **OAEP padding**, the maximum plaintext size per RSA block is **245 bytes**.
-   - After encryption, each RSA block expands to **256 bytes**.
-
-   - **Number of complete RSA blocks** that fit within the available DHCP space:
-     ```
-     Total DHCP Space: 1004 bytes
-     RSA Block Size: 256 bytes
-     Number of RSA blocks: 1004 bytes ÷ 256 bytes = 3 blocks
-     ```
-
-4. **Calculating the Maximum Plaintext Message Size**
-   - Each RSA block can hold a maximum of **245 bytes** of plaintext.
-   - For **3 RSA blocks**, the maximum plaintext message size is:
-     ```
-     245 bytes/block × 3 blocks = 735 bytes
-     ```
-
-### 📊 **Summary of Message Length Calculations**
-- **Usable Space per DHCP Option**: 251 bytes
-- **Total Usable Space Across 4 Options**: 1004 bytes
-- **Maximum Encrypted Message Size**: 1004 bytes
-- **Maximum Plaintext Message Size**: **735 bytes**
-
-### 🚦 **Recommended Input Limit and Format**
-To avoid message truncation and ensure messages fit within the available space, it is recommended to:
-
-1. **Limit the input message to 500 characters**. This limit ensures that:
-   - If special characters (e.g., non-ASCII or multi-byte characters) are used, the message still fits within the 735-byte limit.
+2. **Message Transmission:**
+   - **Client:**
+     - Receives the DHCP Offer.
+     - Prompts the user to input a message.
+     - Encrypts the message using the server's public key.
+     - Fragments the encrypted message and embeds it across DHCP options.
+     - Sends a DHCP Request packet with the encrypted message and session ID.
    
-2. **Enter the entire message on a single line**:
-   - Users should **avoid pressing the Enter key** until the entire message is typed out.
-   - If the Enter key is accidentally pressed before completing the message, the program will prompt the user to continue the message on the same line.
+   - **Server:**
+     - Receives the DHCP Request.
+     - Reassembles and decrypts the client's message using its private key.
+     - Displays the message to the server user.
+     - Prompts the server user to press Enter to confirm reading the message.
+     - Prompts the server user to input a reply.
+     - Encrypts the reply using the client's public key.
+     - Fragments the encrypted reply and embeds it across DHCP options.
+     - Sends a DHCP Ack packet with the encrypted reply and session ID.
 
-3. **Real-Time Byte Check**:
-   - The real-time byte size of the input should be checked before encryption to confirm it does not exceed the available space.
-
-### 🔐 **Practical Considerations**
-- The above calculations assume that the message fits into **three RSA blocks**.
-- If the message is larger, the number of fragments and corresponding overhead increase, reducing the effective message size.
-- If additional DHCP option fields are used, the message size can be increased accordingly.
-
----
-
-## 🕵️ **Example Use Case for DHushCP**
-
-### **Scenario: Covert Communication in a Public Space**
-
-Imagine a scenario where two individuals (Alice and Bob) need to communicate covertly while being in a public space, such as a coffee shop. They both arrive separately and sit at different tables, appearing to be independent customers. They do not connect to the public Wi-Fi network, but their laptops are within wireless range of each other.
-
-### **Problem**
-Alice and Bob need to exchange a short message without creating any obvious network link or visible ad-hoc connection that could attract attention. Using traditional messaging apps or establishing a direct Wi-Fi connection could be easily detected by anyone monitoring the network.
-
-### **Solution: Using DHushCP for Covert Communication**
-
-1. **Step 1: Alice Starts the DHushCP Client**
-   - Alice runs the DHushCP client on her laptop.
-   - Her client sends a `DHCP Discover` packet that contains her public RSA key, embedded and fragmented into multiple DHCP options.
-   - This packet is **broadcast** in the local wireless network range.
+3. **Finalization:**
+   - **Client:**
+     - Receives the DHCP Ack.
+     - Reassembles and decrypts the server's reply using its private key.
+     - Displays the message to the user.
+     - Waits for the user to press Enter to confirm reading the message.
+     - Sends a DHCP Release packet and performs cleanup.
    
-   - 🔐 **Custom Option 224 Filtering**: Alice’s client is configured to only accept **DHCP Offer** responses that contain the **custom DHCP option 224**. This ensures that her client ignores any other DHCP servers that might be present in the same area.
+   - **Server:**
+     - Receives the DHCP Release packet.
+     - Automatically performs cleanup, removing sensitive data and terminating the session.
 
-2. **Step 2: Bob’s DHushCP Server Listens and Responds**
-   - Bob has the DHushCP server running on his laptop, configured to only respond to DHCP packets that include a special identifier (custom DHCP option `224`) set by DHushCP.
-   - The server validates that the packet is from a legitimate DHushCP client and sends back a `DHCP Offer` packet containing his own public RSA key.
+## 💡 Real-Life Use Case
 
-3. **Step 3: Key Exchange and Secure Message Transmission**
-   - Once Alice receives the `DHCP Offer` from Bob, the two have securely exchanged public keys.
-   - Alice then inputs a short covert message (e.g., **"Meet at the corner at 2 PM"**) and her client encrypts the message using Bob’s public key.
-   - The encrypted message is fragmented into multiple DHCP options and sent to Bob in a `DHCP Request` packet.
+**Scenario:** A journalist needs to securely communicate sensitive information to their source without drawing attention to their communication channels. Utilizing **DHushCP**, both parties can exchange encrypted messages over standard DHCP traffic within their local network. This method ensures that their communication remains hidden within normal network operations, protecting the confidentiality of their interactions from potential surveillance or interception.
 
-4. **Step 4: Bob Receives and Decrypts the Message**
-   - Bob’s server receives the `DHCP Request`, reassembles the fragments, and decrypts the message using his private RSA key.
-   - The decrypted message is displayed on his terminal.
-   - Bob then sends a covert response in the same manner (e.g., **"Understood. See you there."**) using the `DHCP Ack` packet.
+## 🖥️ System Requirements
 
-### ⚠️ **One-Time Message Exchange Design**
-- **DHushCP is designed for short-form, one-time message exchanges**. It supports a single message from the client to the server, followed by a response from the server back to the client.
-- After each message exchange, the session is terminated, and the RSA keys are securely deleted. If further communication is needed, the process should be restarted from scratch, with **new RSA key pairs** being generated.
-- This approach maximizes security by ensuring that each communication session is unique and does not reuse any cryptographic keys.
+- **Operating System:** Linux-based systems (e.g., Ubuntu, Debian, Fedora)
+- **Python Version:** Python 3.8 or higher
+- **Dependencies:**
+  - `scapy` for packet crafting and sniffing
+  - `cryptography` for RSA encryption and checksum generation
+- **Privileges:** Root or sudo access to send and receive DHCP packets
+- **Network Interface:** Active wireless interface in UP state
 
-### **Why This Setup Is Effective**
-- The entire exchange happens within **standard DHCP packets**, blending into regular network traffic.
-- There is **no visible Wi-Fi connection** or direct link between Alice and Bob.
-- After the communication ends, both laptops securely delete the exchanged RSA keys and clear the terminal, leaving no traces behind.
-- This approach is useful in scenarios where Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
+## 🛠️ Installation & Setup
 
-This use case highlights how DHushCP can be employed for **covert communication** using a common network management protocol, making it an effective tool for scenarios where traditional methods are easily detectable.
-
-## 💡 **Summary of Features**
-1. **Stealth Communication Using DHCP:**
-   - Embeds encrypted messages into DHCP option fields, blending into regular network traffic.
-
-2. **Asymmetric Encryption:**
-   - Uses RSA public-key encryption to protect messages, ensuring that only the intended recipient can read the message.
-
-3. **Message Fragmentation Across DHCP Options:**
-   - Splits messages into multiple fragments across DHCP options, making detection and reconstruction difficult.
-
-4. **Custom DHCP Option Filtering:**
-   - Uses a custom DHCP option (`224`) to validate that the client and server are communicating exclusively with each other.
-
-5. **Dynamic Message Input:**
-   - Both the client and server receive user input messages during the communication, providing flexibility in the exchanged content.
-
-6. **Automatic Trace Removal:**
-   - Cleans up all keys and data, clears the screen, and exits, ensuring no residual data is left behind.
-
-## 🖥️ **Recommended System Requirements**
-- **Operating System**: Linux (e.g., Ubuntu, Debian, Kali Linux)
-- **Python Version**: 3.6 or higher
-- **Required Libraries**:
-  - `scapy`: For crafting and sending custom DHCP packets.
-  - `cryptography`: For RSA encryption and decryption.
-  - `os` and `sys`: For system-level commands and secure cleanup.
-
-- **Network Interface**: Wireless interface (e.g., `wlan0`) that supports raw packet injection and sniffing.
-- **Memory**: 512MB or higher.
-- **Disk Space**: Minimal, less than 10MB for required dependencies.
-
-## 📦 **Installation and Setup**
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/your_username/DHushCP.git
+   git clone https://github.com/yourusername/DHushCP.git
    cd DHushCP
-
    ```
 
-2. **Install Required Dependencies:**
+2. **Install Dependencies:** Ensure you have Python 3.8 or higher installed. Then, install the required Python packages:
    ```bash
-   sudo apt update
-   pip install cryptography
-   pip install scapy
+   pip install scapy cryptography
    ```
 
-3. **Run the Server and Client:**
-- Start the server on one machine:
+3. **Grant Necessary Permissions:** Both client and server scripts require root privileges to send and sniff DHCP packets. You can run the scripts using `sudo`:
    ```bash
-   sudo python server.py
-   ```
-- Start the client on the other machine:
-   ```bash
-   sudo python client.py
+   sudo python3 client.py
+   sudo python3 server.py
    ```
 
-4. **Message Exchange and Cleanup:**
-- The client and server will exchange messages. Once both parties have read the messages, the tool will automatically clean up and exit.
+4. **Configure Wireless Interface:**
 
-## 🔐 **Security Considerations**
-- **Message Size Limitations**: Messages must be concise due to the limitations of DHCP option fields. If a message is too large, it won’t fit within the available options.
-- **Monitor Mode for Wireless Interfaces**: Ensure that the wireless interfaces used support monitor mode and raw packet manipulation.
-- **Controlled Environments**: Always test **DHushCP** in controlled environments to avoid unintended detection.
+Ensure that your wireless interface is active and in the UP state.
+The scripts will automatically detect and prompt you to select the active interface if multiple are detected.
 
-## ⚠️ **Disclaimers**
-- This tool is intended for educational and research purposes only. 
-- The developers are not responsible for any misuse or illegal activities conducted with this tool. 
-- Always obtain proper authorization before using **DHushCP** in any network.
+5. **Run the Scripts:**
+
+**Server:**
+`sudo python3 server.py`
+
+**Client:**
+`sudo python3 client.py`
+
+Follow the on-screen prompts to initiate and manage the communication session.
+
+## 📚 Usage
+
+1. **Start the Server:**
+
+- Run the server script on the intended host.
+- The server will listen for DHCP Discover packets from the client.
+- Upon receiving a DHCP Discover, the server will send a DHCP Offer embedding its public key and session ID.
+
+2. **Initiate Communication from the Client:**
+
+- Run the client script on the client's machine.
+- The client sends a DHCP Discover embedding its public key and session ID.
+- Upon receiving the DHCP Offer from the server, the client prompts the user to input a message, encrypts it using the server's public key, and sends a DHCP Request.
+
+3. **Server Responds:**
+
+- The server decrypts the client's message, displays it to the server user, and prompts the user to input a reply.
+- The server encrypts the reply using the client's public key and sends a DHCP Ack.
+
+4. **Finalize the Session:**
+
+- The client decrypts the server's reply, displays it to the user, and upon user confirmation, sends a DHCP Release.
+- The server detects the Release and performs cleanup automatically, terminating the session.
+
+## ⚠️ Disclaimer
+**DHushCP** is intended for educational and authorized security testing purposes only. Unauthorized interception or manipulation of network traffic is illegal and unethical. Users are responsible for ensuring that their use of this tool complies with all applicable laws and regulations. The developers of **DHushCP** do not endorse or support any malicious or unauthorized activities. Use this tool responsibly and at your own risk.
+
+## 📜 License
+This project is licensed under the **MIT License**.
+
+
