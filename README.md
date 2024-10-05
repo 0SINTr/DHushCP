@@ -2,14 +2,12 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)
-![GitHub Issues](https://img.shields.io/github/issues/yourusername/DHushCP.svg)
-![GitHub Forks](https://img.shields.io/github/forks/yourusername/DHushCP.svg)
-![GitHub Stars](https://img.shields.io/github/stars/yourusername/DHushCP.svg)
+[![Last Commit](https://img.shields.io/github/last-commit/0SINTr/DHushCP)](https://github.com/0SINTr/DHushCP/commits/main)
 
 ## 📖 Table of Contents
 
 - [🛡️ DHushCP: Secure Covert Communication via DHCP](#🛡️-dhushcp-secure-covert-communication-via-dhcp)
-  - [🔍 Overview](#🔍-overview)
+  - [🔍 Overview](##-🔍-Overview)
   - [🚀 Features](#🚀-features)
   - [🔐 Security Highlights](#🔐-security-highlights)
   - [📈 Advantages](#📈-advantages)
@@ -33,14 +31,6 @@
 - **Automated Cleanup:** Automatically handles session termination and cleans up sensitive data upon completion.
 - **User-Friendly Interface:** Interactive prompts guide users through message input and confirmation steps.
 - **Checksum Verification:** Implements SHA-256 checksums to ensure data integrity and authenticity.
-
-## 🔐 Security Highlights
-
-- **Asymmetric Cryptography:** Ensures that only the intended recipient can decrypt the messages using their private key.
-- **Checksum Validation:** Protects against data tampering and corruption by verifying message integrity.
-- **Automated Key Management:** Generates and manages RSA keys securely within the scripts, minimizing exposure.
-- **Session Isolation:** Unique session IDs prevent unauthorized access and maintain communication boundaries.
-- **Secure Cleanup:** Removes sensitive information from memory and attempts to clear system logs post-session.
 
 ## 📈 Advantages
 
