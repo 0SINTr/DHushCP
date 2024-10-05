@@ -19,7 +19,6 @@
   - [🛠️ Installation & Setup](#🛠️-installation--setup)
   - [📚 Usage](#📚-usage)
   - [⚠️ Disclaimer](#⚠️-disclaimer)
-  - [🤝 Contributing](#🤝-contributing)
   - [📜 License](#📜-license)
 
 ## 🔍 Overview
@@ -97,9 +96,57 @@
      - Receives the DHCP Release packet.
      - Automatically performs cleanup, removing sensitive data and terminating the session.
 
-## 💡 Real-Life Use Case
+## 🕵️ **Example Use Case for DHushCP**
 
-**Scenario:** A journalist needs to securely communicate sensitive information to their source without drawing attention to their communication channels. Utilizing **DHushCP**, both parties can exchange encrypted messages over standard DHCP traffic within their local network. This method ensures that their communication remains hidden within normal network operations, protecting the confidentiality of their interactions from potential surveillance or interception.
+#### **Scenario: Covert Communication in a Public Space**
+
+Imagine a scenario where two individuals (Alice and Bob) need to communicate covertly while being in a public space, such as a coffee shop. They both arrive separately and sit at different tables, appearing to be independent customers. They do not connect to the public Wi-Fi network, but their laptops are within wireless range of each other.
+
+#### **Problem**
+Alice and Bob need to exchange a short message without creating any obvious network link or visible ad-hoc connection that could attract attention. Using traditional messaging apps or establishing a direct Wi-Fi connection could be easily detected by anyone monitoring the network.
+
+#### **Solution: Using DHushCP for Covert Communication**
+
+1. **Step 1: Bob Starts the DHushCP Server**
+   - Bob runs the DHushCP server on his laptop.
+   - His server listens for DHCP Discover packets that contain a special identifier (custom DHCP option 224) set by DHushCP.
+   - This ensures that his server only responds to legitimate DHushCP client packets and ignores other DHCP traffic.
+
+2. **Step 2: Alice Starts the DHushCP Client**
+   - Alice runs the DHushCP client on her laptop.
+   - Her client sends a DHCP Discover packet that contains her public RSA key, embedded and fragmented into multiple DHCP options, along with the DHushCP-ID (option 224) and a unique session ID (option 225).
+   - This packet is **broadcast** in the local wireless network range.
+
+3. **Step 3: Server Responds to Client's DHCP Discover**
+   - Upon receiving Alice's DHCP Discover packet, Bob’s server verifies the DHushCP-ID and session ID.
+   - The server then sends back a DHCP Offer packet containing its own public RSA key, embedded and fragmented across multiple DHCP options, along with the same session ID.
+
+4. **Step 4: Key Exchange and Secure Message Transmission**
+   - Once Alice receives the DHCP Offer from Bob, both have securely exchanged public keys.
+   - Alice inputs a short covert message (e.g., **"Meet at the corner at 2 PM"**) and her client encrypts the message using Bob’s public key.
+   - The encrypted message is fragmented into multiple DHCP options and sent to Bob in a DHCP Request packet.
+
+5. **Step 5: Server Receives and Decrypts the Message**
+   - Bob’s server receives the DHCP Request, reassembles the fragments, and decrypts the message using his private RSA key.
+   - The decrypted message is displayed on his terminal.
+   - Bob then inputs a covert response (e.g., **"Understood. See you there."**) and encrypts it using Alice’s public key.
+   - The encrypted reply is fragmented into multiple DHCP options and sent to Alice in a DHCP Ack packet.
+
+6. **Step 6: Client Receives and Decrypts the Reply**
+   - Alice’s client receives the DHCP Ack, reassembles the fragments, and decrypts the reply using her private RSA key.
+   - The decrypted reply message is displayed to her.
+   - Both Alice and Bob perform cleanup by deleting the exchanged RSA keys and clearing any sensitive logs or data from their terminals.
+
+#### ⚠️ **One-Time Message Exchange Design**
+- **DHushCP is designed for short-form, one-time message exchanges**. It supports a single message from the client to the server, followed by a response from the server back to the client.
+- After each message exchange, the session is terminated, and the RSA keys are securely deleted. If further communication is needed, the process should be restarted from scratch, with **new RSA key pairs** being generated.
+- This approach maximizes security by ensuring that each communication session is unique and does not reuse any cryptographic keys.
+
+#### **Why This Setup Is Effective**
+- The entire exchange happens within **standard DHCP packets**, blending into regular network traffic.
+- There is **no visible Wi-Fi connection** or direct link between Alice and Bob.
+- After the communication ends, both laptops securely delete the exchanged RSA keys and clear the terminal, leaving no traces behind.
+- This approach is useful in scenarios where Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
 
 ## 🖥️ System Requirements
 
