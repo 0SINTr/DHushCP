@@ -103,9 +103,9 @@ def perform_cleanup():
     print(".")  # Confirmation dot
 
 # Check for sudo privileges and detect the interface
-check_sudo()
-wifi_interface = get_wireless_interface()
-check_and_release_ip(wifi_interface)
+check_sudo()  # Ensure script is run with sudo
+wifi_interface = get_wireless_interface()  # Detect the correct wireless interface
+check_and_release_ip(wifi_interface)  # Release any IP addresses to avoid conflicts
 
 # Handle DHCP Discover and respond with DHCP Offer containing fragmented Server's Public Key
 def handle_discover(packet):

@@ -3,18 +3,33 @@
 ## 📝 **Summary**
 **DHushCP** is a covert communication tool that uses the DHCP protocol to enable secure and hidden message exchange between two machines. **DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. Network steganography involves hiding data in plain sight by using legitimate network protocols.
 
-By embedding encrypted messages into DHCP option fields, **DHushCP** establishes a secure communication channel that blends seamlessly into regular network traffic, making it extremely difficult to detect. This tool is ideal for scenarios where privacy and stealth are paramount, such as discreet communications in public places or controlled environments.
+By embedding encrypted messages into DHCP option fields, **DHushCP** establishes a secure communication channel that blends seamlessly into regular network traffic, making it difficult to detect. This tool is ideal for scenarios where privacy and stealth are paramount, such as discreet communications in public places or controlled environments.
 
 With features like RSA public-key encryption, message fragmentation, custom DHCP options for server validation, and automatic cleanup, **DHushCP** ensures that communication is not only secure but also leaves no traces behind once the session is completed.
 
 ## 🔒 **Why Use DHushCP?**
-In environments where privacy and security are crucial, traditional messaging applications and network connections can leave traces or be detected easily. **DHushCP** provides a unique solution by using a widely accepted network management protocol (DHCP) for message exchange. It turns a standard protocol into a covert communication channel without creating persistent connections or visible network links, making it an ideal tool for:
+**DHushCP** provides a **covert communication mechanism** designed for environments where privacy and discretion are crucial. Here are some of the key features that set it apart:
 
-- **Stealth Communication in Public Spaces:** Communicate discreetly without establishing visible connections.
-- **Red Team Operations:** Test the robustness of network monitoring tools and identify detection gaps.
-- **Privacy and Security Research:** Explore covert communication methods in secure environments.
+1. **Protocol-Based Stealth**: Utilizes standard DHCP packets to hide communication, making it appear as typical network traffic.
+2. **Direct Peer-to-Peer Messaging**: Creates a direct communication channel between two machines without the need for a Wi-Fi network.
+3. **Short Message Exchange**: Ideal for exchanging quick, sensitive information without leaving traces.
+4. **Ephemeral Communication**: No session or state is maintained; once the message is exchanged, everything is cleaned up and removed.
+5. **Automatic Interface Detection and Setup**: Automatically identifies the active wireless interface and manages IP addresses for smooth execution.
+6. **RSA Encryption for Security**: All messages are encrypted using RSA, ensuring confidentiality even if packets are intercepted.
+7. **Fragmented Message Handling**: Supports message fragmentation across multiple DHCP options for seamless reassembly.
 
 ### 🔑 **Key Security and Privacy Features**
+#### Prerequisites
+1. **Automatic Wireless Interface Detection:**
+   - The tool automatically detects the active wireless interface (e.g., `wlan0`, `wlp2s0`) on both client and server machines, eliminating the need for manual configuration. This ensures the correct interface is always selected, even if the system uses non-standard names.
+
+2. **Dynamic IP Address Management:**
+- **DHushCP** uses the `ip addr flush` command to release any pre-existing IP addresses on the selected interface before starting DHCP communication. This prevents IP conflicts and ensures smooth operation without interference from the operating system's network stack.
+
+3. **Sudo Privilege Check**
+- Both the client and server scripts include a sudo privilege check to ensure they have the necessary permissions to manage network interfaces and send raw packets. If the scripts are not run with `sudo`, they will notify the user and exit safely.
+
+#### Operation
 1. **Ephemeral Network Traffic:**
    - **DHushCP** leverages broadcast-based DHCP packets to exchange messages, leaving no visible network connections and blending into normal network noise.
 
@@ -53,6 +68,7 @@ In environments where privacy and security are crucial, traditional messaging ap
 #### 2️⃣ **Message Input and Encryption**
 - **Client:**
   - Prompts the user for a message to send to the server.
+  - The user must enter the entire message on a single line and type `END` to finish the input.
   - Encrypts the message using the **server’s public key**.
   - Validates the encrypted message size to ensure it can fit into the available DHCP options.
 
@@ -87,7 +103,7 @@ In environments where privacy and security are crucial, traditional messaging ap
 
 ## 📏 **Calculating Maximum Message Length**
 
-DHushCP uses multiple DHCP option fields to embed encrypted messages. To estimate the maximum plaintext message size that can be securely transmitted, we need to consider the available space in these DHCP options and the RSA encryption overhead.
+**DHushCP** uses multiple DHCP option fields to embed encrypted messages. To estimate the maximum plaintext message size that can be securely transmitted, we need to consider the available space in these DHCP options and the RSA encryption overhead.
 
 ### 🧮 **Step-by-Step Calculation**
 

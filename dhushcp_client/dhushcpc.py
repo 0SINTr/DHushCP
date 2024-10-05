@@ -130,9 +130,9 @@ def reassemble_message_from_options(options):
 server_public_key = None
 
 # Check and release IP on the wireless interface
-check_sudo()
-wifi_interface = get_wireless_interface()
-check_and_release_ip(wifi_interface)
+check_sudo()  # Ensure script is run with sudo
+wifi_interface = get_wireless_interface()  # Detect the correct wireless interface
+check_and_release_ip(wifi_interface)  # Release any IP addresses to avoid conflicts
 
 # Create and send a DHCP Discover packet with the fragmented Client's Public Key
 client_mac = get_if_hwaddr(wifi_interface)
