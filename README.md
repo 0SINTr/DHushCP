@@ -87,7 +87,7 @@ In environments where privacy and security are crucial, traditional messaging ap
 
 ## 📏 **Calculating Maximum Message Length**
 
-**DHushCP** uses multiple DHCP option fields to embed encrypted messages. To estimate the maximum plaintext message size that can be securely transmitted, we need to consider the available space in these DHCP options and the RSA encryption overhead.
+DHushCP uses multiple DHCP option fields to embed encrypted messages. To estimate the maximum plaintext message size that can be securely transmitted, we need to consider the available space in these DHCP options and the RSA encryption overhead.
 
 ### 🧮 **Step-by-Step Calculation**
 
@@ -104,7 +104,7 @@ In environments where privacy and security are crucial, traditional messaging ap
      ```
 
 2. **Total Space Across All Used DHCP Option Fields**
-   - **DHushCP** utilizes **four different DHCP option fields** (`43`, `60`, `77`, and `125`).
+   - DHushCP utilizes **four different DHCP option fields** (`43`, `60`, `77`, and `125`).
    
    - **Total usable space across 4 options**:
      ```
@@ -112,7 +112,7 @@ In environments where privacy and security are crucial, traditional messaging ap
      ```
 
 3. **Impact of RSA Encryption on Message Size**
-   - **DHushCP** uses **RSA-2048** encryption for secure message exchange.
+   - DHushCP uses **RSA-2048** encryption for secure message exchange.
    - For RSA-2048 with **OAEP padding**, the maximum plaintext size per RSA block is **245 bytes**.
    - After encryption, each RSA block expands to **256 bytes**.
 
@@ -136,12 +136,70 @@ In environments where privacy and security are crucial, traditional messaging ap
 - **Maximum Encrypted Message Size**: 1004 bytes
 - **Maximum Plaintext Message Size**: **735 bytes**
 
+### 🚦 **Recommended Input Limit and Format**
+To avoid message truncation and ensure messages fit within the available space, it is recommended to:
+
+1. **Limit the input message to 500 characters**. This limit ensures that:
+   - If special characters (e.g., non-ASCII or multi-byte characters) are used, the message still fits within the 735-byte limit.
+   
+2. **Enter the entire message on a single line**:
+   - Users should **avoid pressing the Enter key** until the entire message is typed out.
+   - If the Enter key is accidentally pressed before completing the message, the program will prompt the user to continue the message on the same line.
+
+3. **Real-Time Byte Check**:
+   - The real-time byte size of the input should be checked before encryption to confirm it does not exceed the available space.
+
 ### 🔐 **Practical Considerations**
 - The above calculations assume that the message fits into **three RSA blocks**.
 - If the message is larger, the number of fragments and corresponding overhead increase, reducing the effective message size.
 - If additional DHCP option fields are used, the message size can be increased accordingly.
 
-By following this calculation, users can estimate how long their plaintext message can be before encryption to fit within the limits of the DHCP options used by **DHushCP**.
+---
+
+## 🕵️ **Example Use Case for DHushCP**
+
+### **Scenario: Covert Communication in a Public Space**
+
+Imagine a scenario where two individuals (Alice and Bob) need to communicate covertly while being in a public space, such as a coffee shop. They both arrive separately and sit at different tables, appearing to be independent customers. They do not connect to the public Wi-Fi network, but their laptops are within wireless range of each other.
+
+### **Problem**
+Alice and Bob need to exchange a short message without creating any obvious network link or visible ad-hoc connection that could attract attention. Using traditional messaging apps or establishing a direct Wi-Fi connection could be easily detected by anyone monitoring the network.
+
+### **Solution: Using DHushCP for Covert Communication**
+
+1. **Step 1: Alice Starts the DHushCP Client**
+   - Alice runs the DHushCP client on her laptop.
+   - Her client sends a `DHCP Discover` packet that contains her public RSA key, embedded and fragmented into multiple DHCP options.
+   - This packet is **broadcast** in the local wireless network range.
+   
+   - 🔐 **Custom Option 224 Filtering**: Alice’s client is configured to only accept **DHCP Offer** responses that contain the **custom DHCP option 224**. This ensures that her client ignores any other DHCP servers that might be present in the same area.
+
+2. **Step 2: Bob’s DHushCP Server Listens and Responds**
+   - Bob has the DHushCP server running on his laptop, configured to only respond to DHCP packets that include a special identifier (custom DHCP option `224`) set by DHushCP.
+   - The server validates that the packet is from a legitimate DHushCP client and sends back a `DHCP Offer` packet containing his own public RSA key.
+
+3. **Step 3: Key Exchange and Secure Message Transmission**
+   - Once Alice receives the `DHCP Offer` from Bob, the two have securely exchanged public keys.
+   - Alice then inputs a short covert message (e.g., **"Meet at the corner at 2 PM"**) and her client encrypts the message using Bob’s public key.
+   - The encrypted message is fragmented into multiple DHCP options and sent to Bob in a `DHCP Request` packet.
+
+4. **Step 4: Bob Receives and Decrypts the Message**
+   - Bob’s server receives the `DHCP Request`, reassembles the fragments, and decrypts the message using his private RSA key.
+   - The decrypted message is displayed on his terminal.
+   - Bob then sends a covert response in the same manner (e.g., **"Understood. See you there."**) using the `DHCP Ack` packet.
+
+### ⚠️ **One-Time Message Exchange Design**
+- **DHushCP is designed for short-form, one-time message exchanges**. It supports a single message from the client to the server, followed by a response from the server back to the client.
+- After each message exchange, the session is terminated, and the RSA keys are securely deleted. If further communication is needed, the process should be restarted from scratch, with **new RSA key pairs** being generated.
+- This approach maximizes security by ensuring that each communication session is unique and does not reuse any cryptographic keys.
+
+### **Why This Setup Is Effective**
+- The entire exchange happens within **standard DHCP packets**, blending into regular network traffic.
+- There is **no visible Wi-Fi connection** or direct link between Alice and Bob.
+- After the communication ends, both laptops securely delete the exchanged RSA keys and clear the terminal, leaving no traces behind.
+- This approach is useful in scenarios where Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
+
+This use case highlights how DHushCP can be employed for **covert communication** using a common network management protocol, making it an effective tool for scenarios where traditional methods are easily detectable.
 
 ## 💡 **Summary of Features**
 1. **Stealth Communication Using DHCP:**
