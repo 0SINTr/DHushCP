@@ -2,8 +2,8 @@ from scapy.all import *
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 import os
-import sys
 import math
+import sys
 
 # Custom DHCP option to uniquely identify DHushCP communication
 custom_option_value = b"DHushCP-ID"
@@ -26,6 +26,23 @@ def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", 
             options.append((option_list[i], encoded_fragment))
     return options
 
+# Function to get complete message input from the user, with byte-based limit handling
+def get_complete_message(prompt, max_bytes=735):
+    print(f"{prompt} (Type 'END' on a new line to finish. Maximum {max_bytes} bytes or 500 characters recommended.)")
+    user_message = ""
+    while True:
+        line = input("> ")
+        if line.strip().upper() == "END":
+            break
+        # Calculate the total byte length if we add this new line
+        if len((user_message + line + " ").encode('utf-8')) > max_bytes:
+            print(f"Byte limit of {max_bytes} exceeded! Message truncated.")
+            while len(user_message.encode('utf-8')) > max_bytes:
+                user_message = user_message[:-1]  # Remove characters until it fits
+            break
+        user_message += line + " "  # Append each line with a space separator
+    return user_message.strip()  # Remove any trailing spaces
+
 # Generate RSA Keys for the Server
 server_private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 server_public_key = server_private_key.public_key()
@@ -35,6 +52,9 @@ server_public_key_pem = server_public_key.public_bytes(
     encoding=serialization.Encoding.PEM,
     format=serialization.PublicFormat.SubjectPublicKeyInfo
 )
+
+# Placeholder for Client's public key
+client_public_key = None
 
 # Function to reassemble message from fragmented DHCP options
 def reassemble_message_from_options(options):
@@ -58,15 +78,11 @@ def perform_cleanup():
     os.system('clear' if os.name == 'posix' else 'cls')
     print(".")  # Confirmation dot
 
-# Placeholder for Client's public key
-client_public_key = None
-
 # Handle DHCP Discover and respond with DHCP Offer containing fragmented Server's Public Key
 def handle_discover(packet):
     global client_public_key
 
     if packet[DHCP] and packet[DHCP].options[0][1] == 1:  # DHCP Discover
-        # Look for the custom option to verify it's from the DHushCP client
         for option in packet[DHCP].options:
             if option[0] == 224 and option[1] == custom_option_value:
                 print("Received valid DHCP Discover from DHushCP client")
@@ -102,10 +118,8 @@ def handle_request(packet):
     global client_public_key
 
     if packet[DHCP] and packet[DHCP].options[0][1] == 3:  # DHCP Request
-        # Reassemble encrypted message from DHCP options
         encrypted_message = reassemble_message_from_options(packet[DHCP].options)
         if encrypted_message:
-            # Decrypt the message using Server's Private Key
             decrypted_message = server_private_key.decrypt(
                 encrypted_message,
                 padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
@@ -113,25 +127,27 @@ def handle_request(packet):
             print(f"Received and decrypted message from Client: {decrypted_message.decode()}")
 
             # Prompt the user to enter a response message for the client
-            user_response = input("Enter the message to send back to the client: ").encode()
+            user_response = get_complete_message("Enter the message to send back to the client")
 
-            # Encrypt message using Client's Public Key
+            # Check the byte length of the input message
+            response_byte_length = len(user_response.encode('utf-8'))
+            if response_byte_length > 735:
+                print(f"Message is too long! The input is {response_byte_length} bytes, but the maximum is 735 bytes.")
+                sys.exit(1)
+
+            print(f"Message accepted. Length in bytes: {response_byte_length} (Max: 735 bytes)")
+
+            # Encrypt response message using Client's Public Key
             encrypted_response = client_public_key.encrypt(
-                user_response,
+                user_response.encode(),
                 padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
             )
 
-            # Ensure the message can fit into the selected DHCP options
-            max_fragment_size = 251  # Max payload size per fragment (255 bytes - 4 bytes metadata)
-            if len(encrypted_response) > len(["43", "60", "77", "125"]) * max_fragment_size:
-                print("Message is too long to fit in the DHCP options. Please enter a shorter message.")
-                sys.exit(1)
-
-            # Fragment the encrypted response message and embed into DHCP Ack
-            response_fragments = fragment_message_with_sequence(encrypted_response, max_fragment_size)
+            # Fragment the encrypted message and embed in DHCP Ack
+            response_fragments = fragment_message_with_sequence(encrypted_response, 251)
             fragmented_options = embed_fragments_into_dhcp_options(response_fragments)
 
-            # Create and send DHCP Ack packet with fragmented encrypted response message
+            # Create and send DHCP Ack with the encrypted response message
             ack = (
                 Ether(src=packet[Ether].dst, dst=packet[Ether].src) /
                 IP(src="192.168.1.1", dst=packet[IP].dst) /

@@ -2,8 +2,8 @@ from scapy.all import *
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 import os
-import sys
 import math
+import sys
 
 # Custom DHCP option to uniquely identify DHushCP communication
 custom_option_value = b"DHushCP-ID"
@@ -25,6 +25,32 @@ def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", 
             encoded_fragment = bytes([seq_num]) + bytes([total_fragments]) + fragment
             options.append((option_list[i], encoded_fragment))
     return options
+
+# Function to get complete message input from the user, with byte-based limit handling
+def get_complete_message(prompt, max_bytes=735):
+    print(f"{prompt} (Type 'END' on a new line to finish. Maximum {max_bytes} bytes or 500 characters recommended.)")
+    user_message = ""
+    while True:
+        line = input("> ")
+        if line.strip().upper() == "END":
+            break
+        # Calculate the total byte length if we add this new line
+        if len((user_message + line + " ").encode('utf-8')) > max_bytes:
+            print(f"Byte limit of {max_bytes} exceeded! Message truncated.")
+            while len(user_message.encode('utf-8')) > max_bytes:
+                user_message = user_message[:-1]  # Remove characters until it fits
+            break
+        user_message += line + " "  # Append each line with a space separator
+    return user_message.strip()  # Remove any trailing spaces
+
+# Function to wait for a strict Enter confirmation
+def wait_for_enter(prompt="Press Enter to confirm you read the message..."):
+    while True:
+        user_input = input(prompt)
+        if user_input == "":  # Enter was pressed without any other input
+            break  # Exit the loop and proceed with cleanup
+        print("Please press only Enter to confirm.")  # Prompt user again
+        continue  # Skip any further instructions and wait for Enter again
 
 # Generate RSA Keys for the Client
 client_private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -60,9 +86,7 @@ server_public_key = None
 def handle_offer(packet):
     global server_public_key
 
-    # Check if the packet is a DHCP Offer and contains the correct custom option
     if packet[DHCP] and packet[DHCP].options[0][1] == 2:  # DHCP Offer
-        # Look for our custom option (224)
         for option in packet[DHCP].options:
             if option[0] == 224 and option[1] == custom_option_value:
                 print("Received valid DHCP Offer from DHushCP server")
@@ -74,22 +98,24 @@ def handle_offer(packet):
                     print(f"Received and reassembled Server's Public Key")
 
                     # Prompt the user to enter a message for the server
-                    user_message = input("Enter the message to send to the server: ").encode()
+                    user_message = get_complete_message("Enter the message to send to the server")
+
+                    # Check the byte length of the input message
+                    message_byte_length = len(user_message.encode('utf-8'))
+                    if message_byte_length > 735:
+                        print(f"Message is too long! The input is {message_byte_length} bytes, but the maximum is 735 bytes.")
+                        sys.exit(1)
+
+                    print(f"Message accepted. Length in bytes: {message_byte_length} (Max: 735 bytes)")
 
                     # Encrypt message using Server's Public Key
                     encrypted_message = server_public_key.encrypt(
-                        user_message,
+                        user_message.encode(),
                         padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
                     )
 
-                    # Ensure the message can fit into the selected DHCP options
-                    max_fragment_size = 251  # Max payload size per fragment (255 bytes - 4 bytes metadata)
-                    if len(encrypted_message) > len(["43", "60", "77", "125"]) * max_fragment_size:
-                        print("Message is too long to fit in the DHCP options. Please enter a shorter message.")
-                        sys.exit(1)
-
                     # Fragment the encrypted message and send in DHCP Request
-                    encrypted_fragments = fragment_message_with_sequence(encrypted_message, max_fragment_size)
+                    encrypted_fragments = fragment_message_with_sequence(encrypted_message, 251)
                     fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments)
 
                     # Create and send DHCP Request packet with fragmented encrypted message
@@ -145,7 +171,7 @@ def handle_ack(packet):
             print(f"Received and decrypted message from Server: {decrypted_message.decode()}")
 
             # Wait for user to confirm they read the message
-            input("Press Enter to confirm you read the message...")
+            wait_for_enter("Press Enter to confirm you read the message...")
 
             # Send DHCP Release
             release = (
