@@ -216,6 +216,16 @@ Follow the on-screen prompts to initiate and manage the communication session.
 - The client decrypts the server's reply, displays it to the user, and upon user confirmation, sends a DHCP Release.
 - The server detects the Release and performs cleanup automatically, terminating the session.
 
+### 🧮 **Available Message Space Calculation**
+
+- **Total Usable Space Across 4 DHCP Options:** 1,004 bytes
+- **RSA Encryption Overhead (4 blocks):** 1,024 bytes
+- **Plaintext Capacity (4 blocks × 190 bytes):** 760 bytes
+- **Checksum Size:** 32 bytes
+- **Available Message Space:** 760 bytes - 32 bytes = **728 bytes**
+
+As a result, the current limit for messages is **500 characters**.
+
 ## ⚠️ Disclaimer
 **DHushCP** is intended for educational and authorized security testing purposes only. Unauthorized interception or manipulation of network traffic is illegal and unethical. Users are responsible for ensuring that their use of this tool complies with all applicable laws and regulations. The developers of **DHushCP** do not endorse or support any malicious or unauthorized activities. Use this tool responsibly and at your own risk.
 

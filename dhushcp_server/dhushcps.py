@@ -121,7 +121,7 @@ def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", 
             options.append((option_list[i], encoded_fragment))
     return options
 
-def get_complete_message(prompt, max_bytes=735):
+def get_complete_message(prompt, max_bytes=700):
     """
     Prompt the user to input a complete message with real-time byte count.
     Type 'END' on a new line to finish.
