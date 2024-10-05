@@ -1,47 +1,49 @@
+import subprocess
+import os
+import sys
 from scapy.all import *
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
-import os
 import math
-import sys
 
-# Custom DHCP option to uniquely identify DHushCP communication
-custom_option_value = b"DHushCP-ID"
+# Automatically detect the wireless interface
+def get_wireless_interface():
+    """Automatically detect the active wireless interface name."""
+    try:
+        result = subprocess.run(['iw', 'dev'], capture_output=True, text=True)
+        lines = result.stdout.splitlines()
+        interfaces = [line.split()[1] for line in lines if "Interface" in line]
+        if interfaces:
+            print(f"Detected wireless interface: {interfaces[0]}")
+            return interfaces[0]
+        else:
+            print("No wireless interface found.")
+            sys.exit(1)
+    except Exception as e:
+        print(f"Failed to detect wireless interface: {e}")
+        sys.exit(1)
 
-# Function to fragment a message into smaller chunks with sequence numbers and metadata
-def fragment_message_with_sequence(message, chunk_size):
-    fragments = []
-    total_fragments = math.ceil(len(message) / chunk_size)
-    for seq_num, i in enumerate(range(0, len(message), chunk_size)):
-        fragment = message[i:i + chunk_size]
-        fragments.append((seq_num, total_fragments, fragment))  # (sequence_number, total_fragments, fragment)
-    return fragments
+# Check if the script is running with sudo privileges
+def check_sudo():
+    """Check if the script is running with sudo privileges."""
+    if os.geteuid() != 0:
+        print("This script requires sudo privileges. Please run it with `sudo`.")
+        sys.exit(1)
 
-# Function to embed message chunks into selected DHCP options
-def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", "125"]):
-    options = []
-    for i, (seq_num, total_fragments, fragment) in enumerate(fragments):
-        if i < len(option_list):
-            encoded_fragment = bytes([seq_num]) + bytes([total_fragments]) + fragment
-            options.append((option_list[i], encoded_fragment))
-    return options
-
-# Function to get complete message input from the user, with byte-based limit handling
-def get_complete_message(prompt, max_bytes=735):
-    print(f"{prompt} (Type 'END' on a new line to finish. Maximum {max_bytes} bytes or 500 characters recommended.)")
-    user_message = ""
-    while True:
-        line = input("> ")
-        if line.strip().upper() == "END":
-            break
-        # Calculate the total byte length if we add this new line
-        if len((user_message + line + " ").encode('utf-8')) > max_bytes:
-            print(f"Byte limit of {max_bytes} exceeded! Message truncated.")
-            while len(user_message.encode('utf-8')) > max_bytes:
-                user_message = user_message[:-1]  # Remove characters until it fits
-            break
-        user_message += line + " "  # Append each line with a space separator
-    return user_message.strip()  # Remove any trailing spaces
+# Release any existing IP on the interface using `ip` command
+def check_and_release_ip(interface):
+    """Check if the interface has an assigned IP and release it using the `ip` command."""
+    try:
+        result = subprocess.run(['ip', '-4', 'addr', 'show', interface], capture_output=True, text=True)
+        if "inet " in result.stdout:
+            print(f"Warning: Interface {interface} has an IP address assigned.")
+            print("Releasing the IP address to avoid conflicts...")
+            subprocess.run(['sudo', 'ip', 'addr', 'flush', 'dev', interface], capture_output=True, text=True)
+            print(f"IP address on {interface} has been released using `ip addr flush`.")
+        else:
+            print(f"No IP address found on {interface}.")
+    except Exception as e:
+        print(f"Failed to check or release IP on {interface} using `ip` command: {e}")
 
 # Generate RSA Keys for the Server
 server_private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -56,8 +58,29 @@ server_public_key_pem = server_public_key.public_bytes(
 # Placeholder for Client's public key
 client_public_key = None
 
+# Function to fragment a message into smaller chunks with sequence numbers and metadata
+def fragment_message_with_sequence(message, chunk_size):
+    """Fragment a message into smaller chunks with sequence numbers."""
+    fragments = []
+    total_fragments = math.ceil(len(message) / chunk_size)
+    for seq_num, i in enumerate(range(0, len(message), chunk_size)):
+        fragment = message[i:i + chunk_size]
+        fragments.append((seq_num, total_fragments, fragment))  # (sequence_number, total_fragments, fragment)
+    return fragments
+
+# Function to embed message chunks into selected DHCP options
+def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", "125"]):
+    """Embed message fragments into selected DHCP options."""
+    options = []
+    for i, (seq_num, total_fragments, fragment) in enumerate(fragments):
+        if i < len(option_list):
+            encoded_fragment = bytes([seq_num]) + bytes([total_fragments]) + fragment
+            options.append((option_list[i], encoded_fragment))
+    return options
+
 # Function to reassemble message from fragmented DHCP options
 def reassemble_message_from_options(options):
+    """Reassemble message fragments from DHCP options."""
     fragments = {}
     for opt in options:
         if opt[0] in ["43", "60", "77", "125"]:
@@ -72,11 +95,17 @@ def reassemble_message_from_options(options):
 
 # Function to perform cleanup after reading the message
 def perform_cleanup():
+    """Perform cleanup after reading the message."""
     global server_private_key, client_public_key
     server_private_key = None
     client_public_key = None
     os.system('clear' if os.name == 'posix' else 'cls')
     print(".")  # Confirmation dot
+
+# Check for sudo privileges and detect the interface
+check_sudo()
+wifi_interface = get_wireless_interface()
+check_and_release_ip(wifi_interface)
 
 # Handle DHCP Discover and respond with DHCP Offer containing fragmented Server's Public Key
 def handle_discover(packet):
@@ -84,7 +113,7 @@ def handle_discover(packet):
 
     if packet[DHCP] and packet[DHCP].options[0][1] == 1:  # DHCP Discover
         for option in packet[DHCP].options:
-            if option[0] == 224 and option[1] == custom_option_value:
+            if option[0] == 224 and option[1] == b"DHushCP-ID":
                 print("Received valid DHCP Discover from DHushCP client")
 
                 # Reassemble Client's Public Key from Fragments
@@ -105,9 +134,9 @@ def handle_discover(packet):
                         BOOTP(op=2, yiaddr="192.168.1.10", siaddr="192.168.1.1", chaddr=packet[Ether].chaddr) /
                         DHCP(options=[("message-type", "offer"),
                                       ("server_id", "192.168.1.1"),
-                                      (224, custom_option_value)] + fragmented_options + [("end")])
+                                      (224, b"DHushCP-ID")] + fragmented_options + [("end")])
                     )
-                    sendp(offer, iface="wlan0")
+                    sendp(offer, iface=wifi_interface)
                     print("Sent DHCP Offer with fragmented Server's Public Key")
                 break
         else:
@@ -120,6 +149,7 @@ def handle_request(packet):
     if packet[DHCP] and packet[DHCP].options[0][1] == 3:  # DHCP Request
         encrypted_message = reassemble_message_from_options(packet[DHCP].options)
         if encrypted_message:
+            # Decrypt the message using the Server's Private Key
             decrypted_message = server_private_key.decrypt(
                 encrypted_message,
                 padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
@@ -127,15 +157,7 @@ def handle_request(packet):
             print(f"Received and decrypted message from Client: {decrypted_message.decode()}")
 
             # Prompt the user to enter a response message for the client
-            user_response = get_complete_message("Enter the message to send back to the client")
-
-            # Check the byte length of the input message
-            response_byte_length = len(user_response.encode('utf-8'))
-            if response_byte_length > 735:
-                print(f"Message is too long! The input is {response_byte_length} bytes, but the maximum is 735 bytes.")
-                sys.exit(1)
-
-            print(f"Message accepted. Length in bytes: {response_byte_length} (Max: 735 bytes)")
+            user_response = input("Enter the message to send back to the client: ")
 
             # Encrypt response message using Client's Public Key
             encrypted_response = client_public_key.encrypt(
@@ -155,9 +177,9 @@ def handle_request(packet):
                 BOOTP(op=2, yiaddr=packet[BOOTP].yiaddr, siaddr="192.168.1.1", chaddr=packet[Ether].chaddr) /
                 DHCP(options=[("message-type", "ack"),
                               ("server_id", "192.168.1.1"),
-                              (224, custom_option_value)] + fragmented_options + [("end")])
+                              (224, b"DHushCP-ID")] + fragmented_options + [("end")])
             )
-            sendp(ack, iface="wlan0")
+            sendp(ack, iface=wifi_interface)
             print("Sent DHCP Ack with encrypted message")
 
 # Handle DHCP Release and perform cleanup
@@ -168,6 +190,6 @@ def handle_release(packet):
         sys.exit()
 
 # Sniff for DHCP Discover, Request, and Release packets
-sniff(filter="udp and (port 67 or 68)", prn=handle_discover, iface="wlan0", timeout=60)
-sniff(filter="udp and (port 67 or 68)", prn=handle_request, iface="wlan0", timeout=60)
-sniff(filter="udp and (port 67 or 68)", prn=handle_release, iface="wlan0", timeout=60)
+sniff(filter="udp and (port 67 or 68)", prn=handle_discover, iface=wifi_interface, timeout=60)
+sniff(filter="udp and (port 67 or 68)", prn=handle_request, iface=wifi_interface, timeout=60)
+sniff(filter="udp and (port 67 or 68)", prn=handle_release, iface=wifi_interface, timeout=60)
