@@ -48,41 +48,47 @@
      - Detects and selects the active wireless interface.
      - Releases any existing IP address on the interface.
      - Generates RSA key pair (public/private keys).
-     - Sends a DHCP Discover packet embedding its public key, a DHushCP-ID (option 224), and the session ID (option 225).
+     - Sends a DHCP Discover packet embedding its public key (fragmented across DHCP Options), a DHushCP-ID (option 224), and the session ID (option 225).
+     - Waits to receive a legitimate DHCP Offer packet from the server.
    
    - **Server:**
+     - Waits to receive a DHCP Discover packet from the client.
      - Receives the DHCP Discover packet.
-     - Validates the packet's options 224 and 225.
-     - Extracts and reassembles the client's public key.
+     - Validates that the Discover packet includes option 224 (DHushCP-ID) and option 225 (Session ID).
+     - Extracts the session ID from option 225.
+     - Extracts and reassembles the client's public RSA key.
      - Generates its own RSA key pair.
-     - Sends a DHCP Offer packet embedding its public key, DHushCP-ID, and the same session ID.
+     - Sends a DHCP Offer packet embedding its public key, DHushCP-ID, and the same (extracted) session ID.
+     - Waits for a legitimate DHCP Request packet from the client.
 
 2. **Message Transmission:**
    - **Client:**
-     - Receives the DHCP Offer.
-     - Extracts and reassembles the client's public key.
+     - Receives the DHCP Offer from the server.
+     - Extracts and reassembles the server's public RSA key.
      - Prompts the user to input a message.
-     - Encrypts the message using the server's public key.
-     - Fragments the encrypted message and embeds it across DHCP options.
+     - Encrypts the message using the server's public RSA key.
+     - Fragments the encrypted message (including a checksum) and embeds it across DHCP options.
      - Sends a DHCP Request packet with the encrypted message and session ID.
+     - Waits for the DHCP Ack from the server.
    
    - **Server:**
-     - Receives the DHCP Request.
-     - Reassembles and decrypts the client's message using its private key.
+     - Receives and validates the DHCP Request packet (checks options 224 and 225).
+     - Reassembles and decrypts the client's message using its own private RSA key.
      - Displays the message to the server user.
      - Prompts the server user to press Enter to confirm reading the message.
      - Prompts the server user to input a reply.
-     - Encrypts the reply using the client's public key.
-     - Fragments the encrypted reply and embeds it across DHCP options.
+     - Encrypts the reply using the client's public RSA key.
+     - Fragments the encrypted reply (including a checksum) and embeds it across DHCP options.
      - Sends a DHCP Ack packet with the encrypted reply and session ID.
+     - Waits for a DHCP Release packet from the client.
 
 3. **Finalization:**
    - **Client:**
-     - Receives the DHCP Ack.
-     - Reassembles and decrypts the server's reply using its private key.
+     - Receives the DHCP Ack from the server.
+     - Reassembles and decrypts the server's reply using its private RSA key.
      - Displays the message to the user.
      - Waits for the user to press Enter to confirm reading the message.
-     - Sends a DHCP Release packet and performs cleanup.
+     - Sends a DHCP Release packet and automatically performs cleanup.
    
    - **Server:**
      - Receives the DHCP Release packet.
