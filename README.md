@@ -21,7 +21,7 @@
 
 ## 🔍 Overview
 
-**DHushCP** is a sophisticated framework designed to facilitate **secure covert communication** between a client and server using standard **DHCP (Dynamic Host Configuration Protocol)** packets. By embedding cryptographic elements within DHCP options, DHushCP enables hidden message exchanges over existing network infrastructures without raising suspicion.
+**DHushCP** is a tool designed to facilitate **secure covert communication** between two parties - a client and server - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. **DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges over existing network infrastructures without raising suspicion.
 
 ## 🚀 Features
 
@@ -34,8 +34,8 @@
 
 ## 📈 Advantages
 
-- **Stealthy Communication:** Leverages common network protocols (DHCP) to facilitate hidden message exchanges, reducing the likelihood of detection.
-- **No Additional Infrastructure:** Operates over existing network setups without the need for specialized hardware or software.
+- **Stealthy Communication:** Leverages the common DHCP protocol to facilitate hidden message exchanges, reducing the likelihood of detection.
+- **No Additional Infrastructure:** Operates outside existing network setups without the need for specialized hardware or software.
 - **Flexible Integration:** Easily integrates into various network environments, making it adaptable for different use cases.
 - **User Control:** Empowers users with interactive prompts, ensuring that communication is deliberate and controlled.
 - **Robust Security:** Combines multiple security mechanisms to safeguard data against interception and unauthorized access.
@@ -52,6 +52,7 @@
    
    - **Server:**
      - Receives the DHCP Discover packet.
+     - Validates the packet's options 224 and 225.
      - Extracts and reassembles the client's public key.
      - Generates its own RSA key pair.
      - Sends a DHCP Offer packet embedding its public key, DHushCP-ID, and the same session ID.
@@ -59,6 +60,7 @@
 2. **Message Transmission:**
    - **Client:**
      - Receives the DHCP Offer.
+     - Extracts and reassembles the client's public key.
      - Prompts the user to input a message.
      - Encrypts the message using the server's public key.
      - Fragments the encrypted message and embeds it across DHCP options.
@@ -98,12 +100,12 @@ Alice and Bob need to exchange a short message without creating any obvious netw
 #### **Solution: Using DHushCP for Covert Communication**
 
 1. **Step 1: Bob Starts the DHushCP Server**
-   - Bob runs the DHushCP server on his laptop.
-   - His server listens for DHCP Discover packets that contain a special identifier (custom DHCP option 224) set by DHushCP.
-   - This ensures that his server only responds to legitimate DHushCP client packets and ignores other DHCP traffic.
+   - Bob runs the **DHushCP** server on his laptop.
+   - His server listens for DHCP Discover packets that contain a special identifier (custom DHCP option 224) set by **DHushCP**.
+   - This ensures that his server only responds to legitimate **DHushCP** client packets and ignores other DHCP traffic.
 
 2. **Step 2: Alice Starts the DHushCP Client**
-   - Alice runs the DHushCP client on her laptop.
+   - Alice runs the **DHushCP** client on her laptop.
    - Her client sends a DHCP Discover packet that contains her public RSA key, embedded and fragmented into multiple DHCP options, along with the DHushCP-ID (option 224) and a unique session ID (option 225).
    - This packet is **broadcast** in the local wireless network range.
 
@@ -161,18 +163,12 @@ Alice and Bob need to exchange a short message without creating any obvious netw
    pip install scapy cryptography
    ```
 
-3. **Grant Necessary Permissions:** Both client and server scripts require root privileges to send and sniff DHCP packets. You can run the scripts using `sudo`:
-   ```bash
-   sudo python3 client.py
-   sudo python3 server.py
-   ```
-
-4. **Configure Wireless Interface:**
+3. **Configure Wireless Interface:**
 
 Ensure that your wireless interface is active and in the UP state.
 The scripts will automatically detect and prompt you to select the active interface if multiple are detected.
 
-5. **Run the Scripts:**
+4. **Run the Scripts:** Both client and server scripts require root privileges to send and sniff DHCP packets. You can run the scripts using `sudo`:
 
 **Server:**
 `sudo python3 server.py`
@@ -221,5 +217,3 @@ As a result, the current limit for messages is **500 characters**.
 
 ## 📜 License
 This project is licensed under the **MIT License**.
-
-
