@@ -11,11 +11,10 @@
   - [🚀 Features](#-features)
   - [📈 Advantages](#-advantages)
   - [🔄 Communication Flow](#-communication-flow)
-  - [💡 Real-Life Use Case](#%EF%B8%8F-example-use-case-for-dhushcp)
+  - [🕵️ Example Use Case for DHushCP](#%EF%B8%8F-example-use-case-for-dhushcp)
+  - [🧮 Available Message Space Calculation](#-available-message-space-calculation)
   - [🖥️ System Requirements](#%EF%B8%8F-system-requirements)
   - [🛠️ Installation & Setup](#%EF%B8%8F-installation--setup)
-  - [📚 Usage](#-usage)
-  - [🧮 Available Message Space Calculation](#-available-message-space-calculation)
   - [⚠️ Disclaimer](#%EF%B8%8F-disclaimer)
   - [📜 License](#-license)
 
@@ -91,7 +90,7 @@
    
    - **Server:**
      - Receives the DHCP Release packet.
-     - Automatically performs by taking the same steps as the client and terminating the session.
+     - Automatically performs cleanup by taking the same steps as the client and terminates the session.
 
 ## 🕵️ **Example Use Case for DHushCP**
 
@@ -145,6 +144,16 @@ Alice and Bob need to exchange a short message without creating any obvious netw
 - After the communication ends, both laptops securely delete the exchanged RSA keys and clear the terminal, leaving no traces behind.
 - This approach is useful in scenarios where Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
 
+### 🧮 **Available Message Space Calculation**
+
+- **Total Usable Space Across 4 DHCP Options:** 1,004 bytes
+- **RSA Encryption Overhead (4 blocks):** 1,024 bytes
+- **Plaintext Capacity (4 blocks × 190 bytes):** 760 bytes
+- **Checksum Size:** 32 bytes
+- **Available Message Space:** 760 bytes - 32 bytes = **728 bytes**
+
+As a result, the current limit for messages is **500 characters**.
+
 ## 🖥️ System Requirements
 
 - **Operating System:** Linux-based systems (e.g., Ubuntu, Debian, Fedora)
@@ -182,40 +191,6 @@ The scripts will automatically detect and prompt you to select the active interf
 `sudo python3 client.py`
 
 Follow the on-screen prompts to initiate and manage the communication session.
-
-## 📚 Usage
-
-1. **Start the Server:**
-
-- Run the server script on the intended host.
-- The server will listen for DHCP Discover packets from the client.
-- Upon receiving a DHCP Discover, the server will send a DHCP Offer embedding its public key and session ID.
-
-2. **Initiate Communication from the Client:**
-
-- Run the client script on the client's machine.
-- The client sends a DHCP Discover embedding its public key and session ID.
-- Upon receiving the DHCP Offer from the server, the client prompts the user to input a message, encrypts it using the server's public key, and sends a DHCP Request.
-
-3. **Server Responds:**
-
-- The server decrypts the client's message, displays it to the server user, and prompts the user to input a reply.
-- The server encrypts the reply using the client's public key and sends a DHCP Ack.
-
-4. **Finalize the Session:**
-
-- The client decrypts the server's reply, displays it to the user, and upon user confirmation, sends a DHCP Release.
-- The server detects the Release and performs cleanup automatically, terminating the session.
-
-### 🧮 **Available Message Space Calculation**
-
-- **Total Usable Space Across 4 DHCP Options:** 1,004 bytes
-- **RSA Encryption Overhead (4 blocks):** 1,024 bytes
-- **Plaintext Capacity (4 blocks × 190 bytes):** 760 bytes
-- **Checksum Size:** 32 bytes
-- **Available Message Space:** 760 bytes - 32 bytes = **728 bytes**
-
-As a result, the current limit for messages is **500 characters**.
 
 ## ⚠️ Disclaimer
 **DHushCP** is intended for educational and authorized security testing purposes only. Unauthorized interception or manipulation of network traffic is illegal and unethical. Users are responsible for ensuring that their use of this tool complies with all applicable laws and regulations. The developers of **DHushCP** do not endorse or support any malicious or unauthorized activities. Use this tool responsibly and at your own risk.
