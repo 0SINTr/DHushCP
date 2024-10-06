@@ -1,3 +1,5 @@
+# Copyright (C) 2024-2025 0SINTr (https://github.com/0SINTr) 
+
 import subprocess
 import os
 import sys
@@ -5,7 +7,6 @@ from scapy.all import *
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 import math
-import uuid
 
 # ==============================
 # Utility Functions
