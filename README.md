@@ -48,38 +48,37 @@
      - Detects and selects the active wireless interface.
      - Releases any existing IP address on the interface.
      - Generates RSA key pair (public/private keys).
-     - Sends a DHCP Discover packet embedding its public key (fragmented across DHCP Options), a DHushCP-ID (option 224), and the session ID (option 225).
-     - Waits to receive a legitimate DHCP Offer packet from the server.
+     - Fragments and embeds its public key, DHushCP-ID (option 224), and session ID (option 225) into the DHCP Discover packet.
+     - Sends the DHCP Discover packet and waits for a legitimate DHCP Offer from the server.
    
    - **Server:**
-     - Waits to receive a DHCP Discover packet from the client.
-     - Receives the DHCP Discover packet.
-     - Validates that the Discover packet includes option 224 (DHushCP-ID) and option 225 (Session ID).
-     - Extracts the session ID from option 225.
-     - Extracts and reassembles the client's public RSA key.
+     - Listens for DHCP Discover packets with option 224 set to DHushCP-ID.
+     - Upon receiving a valid DHCP Discover (option 224 set to DHushCP-ID), extracts the session ID from option 225.
+     - Extracts and reassembles the client's public RSA key from the DHCP options.
      - Generates its own RSA key pair.
-     - Sends a DHCP Offer packet embedding its public key, DHushCP-ID, and the same (extracted) session ID.
-     - Waits for a legitimate DHCP Request packet from the client.
+     - Fragments and embeds its public key, DHushCP-ID, and the extracted session ID into the DHCP Offer packet.
+     - Sends the DHCP Offer packet back to the client and waits for a legitimate DHCP Request.
 
 2. **Message Transmission:**
    - **Client:**
      - Receives the DHCP Offer from the server.
-     - Extracts and reassembles the server's public RSA key.
+     - Extracts and reassembles the server's public RSA key from DHCP options.
      - Prompts the user to input a message.
      - Encrypts the message using the server's public RSA key.
-     - Fragments the encrypted message (including a checksum) and embeds it across DHCP options.
-     - Sends a DHCP Request packet with the encrypted message and session ID.
-     - Waits for the DHCP Ack from the server.
+     - Generates a checksum for the encrypted message.
+     - Fragments and embeds the encrypted message with the checksum and session ID into the DHCP Request packet.
+     - Sends the DHCP Request packet and waits for a DHCP Ack from the server.
    
    - **Server:**
-     - Receives and validates the DHCP Request packet (checks options 224 and 225).
+     - Receives and validates the DHCP Request packet by checking options 224 and 225.
      - Reassembles and decrypts the client's message using its own private RSA key.
-     - Displays the message to the server user.
+     - Displays the decrypted message to the server user.
      - Prompts the server user to press Enter to confirm reading the message.
      - Prompts the server user to input a reply.
      - Encrypts the reply using the client's public RSA key.
-     - Fragments the encrypted reply (including a checksum) and embeds it across DHCP options.
-     - Sends a DHCP Ack packet with the encrypted reply and session ID.
+     - Generates a checksum for the encrypted reply.
+     - Fragments and embeds the encrypted reply with the checksum and session ID into the DHCP Ack packet.
+     - Sends a DHCP Ack packet back to the client.
      - Waits for a DHCP Release packet from the client.
 
 3. **Finalization:**
@@ -88,11 +87,11 @@
      - Reassembles and decrypts the server's reply using its private RSA key.
      - Displays the message to the user.
      - Waits for the user to press Enter to confirm reading the message.
-     - Sends a DHCP Release packet and automatically performs cleanup.
+     - Sends a DHCP Release packet and performs cleanup (deleting RSA keys, clearing logs, clearing the screen etc.).
    
    - **Server:**
      - Receives the DHCP Release packet.
-     - Automatically performs cleanup, removing sensitive data and terminating the session.
+     - Automatically performs by taking the same steps as the client and terminating the session.
 
 ## 🕵️ **Example Use Case for DHushCP**
 
