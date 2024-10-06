@@ -1,4 +1,4 @@
-# Copyright (C) 2024-2025 0SINTr (https://github.com/0SINTr)
+# Copyright (C) 2024-2025 0SINTr (https://github.com/0SINTr) 
 
 import subprocess
 import os
