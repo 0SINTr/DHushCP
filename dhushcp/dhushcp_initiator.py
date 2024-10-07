@@ -301,15 +301,14 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                 plaintext = decrypt_message(shared_key_holder['key'], assembled_data)
                 if plaintext:
                     print(f"\n[MESSAGE] {plaintext}\n")
-                    # Only responders should reply
-                    if not shared_key_holder.get('initiated'):
-                        user_reply = input("Enter your reply (or press Enter to skip): ").strip()
-                        if user_reply:
-                            encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
-                            packet_options = embed_data_into_dhcp_options(encrypted_reply)
-                            reply_packet = create_dhcp_discover(session_id, dhushcp_id, packet_options)
-                            send_dhcp_discover(reply_packet, iface)
-                            print("[INFO] Sent encrypted reply.")
+                    # Only initiators send messages; responders reply
+                    user_reply = input("Enter your reply (or press Enter to skip): ").strip()
+                    if user_reply:
+                        encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
+                        packet_options = embed_data_into_dhcp_options(encrypted_reply)
+                        reply_packet = create_dhcp_discover(session_id, dhushcp_id, packet_options)
+                        send_dhcp_discover(reply_packet, iface)
+                        print("[INFO] Sent encrypted reply.")
 
 def cleanup_process(iface, session_id, dhushcp_id, private_key, public_key, shared_key_holder):
     """Perform cleanup after communication."""
@@ -365,12 +364,12 @@ def main():
     # Start listening in a separate thread
     listener_thread = threading.Thread(
         target=listen_dhcp_discover, 
-        args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder, roles_lock), stop_event)
+        args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHCP_OPTION_ID, session_id, shared_key_holder, roles_lock), stop_event)
     )
     listener_thread.daemon = True
     listener_thread.start()
 
-    # Decide whether to initiate key exchange
+    # Initiator prompts to initiate communication
     choice = input("Do you want to initiate communication? (y/n): ").strip().lower()
     if choice == 'y':
         initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
