@@ -253,7 +253,7 @@ def handle_received_dhcp(packet):
                 return
 
         # Debugging: Print received DHCP options
-        print("[DEBUG] Received DHCP Discover with options:", option_dict)
+        #print("[DEBUG] Received DHCP Discover with options:", option_dict)
 
         # Check for DHushCP-ID and Session ID
         if (DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == DHUSHCP_ID and
@@ -262,13 +262,13 @@ def handle_received_dhcp(packet):
             # Check if data is present
             data_options = [opt for opt in dhcp_options if isinstance(opt, tuple) and opt[0] == DATA_OPTION]
             if not data_options:
-                print("[DEBUG] No data embedded in DHCP Discover. Ignoring packet.")
+                print("[WARNING] No data embedded in DHCP Discover. Ignoring packet.")
                 return  # No data embedded
 
             # Reassemble data
             assembled_data = reassemble_data_from_dhcp_options(dhcp_options)
             if not assembled_data:
-                print("[DEBUG] Failed to reassemble data from DHCP options.")
+                print("[ERROR] Failed to reassemble data from DHCP options.")
                 return  # Reassembly failed
 
             # Determine if it's a public key or encrypted message
@@ -282,7 +282,7 @@ def handle_received_dhcp(packet):
                 print("[INFO] Derived shared AES key.")
             except Exception as e:
                 # Assume it's an encrypted message
-                print(f"[DEBUG] Data is not a public key. Attempting to decrypt as message.")
+                #print(f"[DEBUG] Data is not a public key. Attempting to decrypt as message.")
                 if shared_key_holder['key'] is None:
                     print("[WARNING] Received encrypted message but shared key is not established.")
                     return
@@ -290,7 +290,7 @@ def handle_received_dhcp(packet):
                 if plaintext:
                     print(f"\n[MESSAGE] {plaintext}\n")
                     # Prompt user to reply
-                    user_reply = input("Enter your reply (or press Enter to skip): ").strip()
+                    user_reply = input("Enter your reply (or press Ctrl+C to exit and cleanup): ").strip()
                     if user_reply:
                         encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
                         packet_options = embed_data_into_dhcp_options(encrypted_reply)
@@ -298,7 +298,8 @@ def handle_received_dhcp(packet):
                         send_dhcp_discover(reply_packet, iface)
                         print("[INFO] Sent encrypted reply.")
         else:
-            print("[DEBUG] Packet does not match DHushCP criteria or session ID. Ignoring.")
+            #print("[DEBUG] Packet does not match DHushCP criteria or session ID. Ignoring.")
+            pass
 
 def cleanup_process():
     """Perform cleanup after communication."""
@@ -325,7 +326,7 @@ def cleanup_process():
         for log in log_files:
             if os.path.exists(log):
                 subprocess.run(['truncate', '-s', '0', log], check=True)
-                print(f"[DEBUG] Cleared {log}.")
+                #print(f"[DEBUG] Cleared {log}.")
         print("[INFO] System logs cleared successfully.")
     except Exception as e:
         print(f"[ERROR] Failed to clear system logs: {e}")
