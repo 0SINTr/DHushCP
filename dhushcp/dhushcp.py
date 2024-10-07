@@ -293,8 +293,15 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                 shared_key_holder['key'] = shared_key
                 print("[INFO] Derived shared AES key.")
 
-                # Send own public key in response
-                initiate_key_exchange(iface, session_id, dhushcp_id, private_key)
+                # If initiating, prompt for message after responding with own public key
+                if shared_key_holder.get('initiated'):
+                    # Initiator has already sent their public key
+                    # Now, after receiving the peer's public key, they should be ready to send a message
+                    print("[INFO] Key exchange complete. You can now send a message.")
+                else:
+                    # Respond to key exchange by sending own public key
+                    initiate_key_exchange(iface, session_id, dhushcp_id, private_key)
+
             except Exception:
                 # Assume it's an encrypted message
                 if shared_key_holder['key'] is None:
@@ -311,7 +318,7 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                         reply_packet = create_dhcp_discover(session_id, dhushcp_id, packet_options)
                         send_dhcp_discover(reply_packet, iface)
                         print("[INFO] Sent encrypted reply.")
-    
+
 def cleanup_process(iface, session_id, dhushcp_id, private_key, public_key, shared_key_holder):
     """Perform cleanup after communication."""
     print("\n[INFO] Initiating cleanup process...")
@@ -362,16 +369,27 @@ def main():
     private_key, public_key = generate_ecc_keypair()
     print("[INFO] Generated ECC key pair.")
 
-    shared_key_holder = {'key': None}  # To hold the derived shared key
+    shared_key_holder = {'key': None, 'initiated': False}  # To hold the derived shared key and initiation status
 
     # Decide whether to initiate key exchange or wait for it
     choice = input("Do you want to initiate communication? (y/n): ").strip().lower()
     if choice == 'y':
         initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
+        shared_key_holder['initiated'] = True
 
     # Start listening for DHCP Discover packets
     print("[INFO] Listening for DHCP Discover packets...")
     listen_dhcp_discover(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder), timeout=300)
+
+    # If initiated and shared key is established, prompt for message
+    if shared_key_holder.get('key') and shared_key_holder.get('initiated'):
+        user_message = input("Enter your message to send: ").strip()
+        if user_message:
+            encrypted_message = encrypt_message(shared_key_holder['key'], user_message)
+            packet_options = embed_data_into_dhcp_options(encrypted_message)
+            message_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
+            send_dhcp_discover(message_packet, iface)
+            print("[INFO] Sent encrypted message.")
 
     # Perform cleanup after listening
     cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
