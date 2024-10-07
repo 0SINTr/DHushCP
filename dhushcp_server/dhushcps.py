@@ -43,10 +43,19 @@ def get_wireless_interface():
         # Check if the interface is UP
         state_check = subprocess.run(['ip', 'link', 'show', selected_interface], capture_output=True, text=True)
         if "state UP" in state_check.stdout:
+            print(f"Interface {selected_interface} is UP.")
             return selected_interface
         else:
-            print(f"Interface {selected_interface} is DOWN. Please bring it UP before running the script.")
-            sys.exit(1)
+            print(f"Interface {selected_interface} is DOWN. Attempting to bring it UP.")
+            subprocess.run(['ip', 'link', 'set', selected_interface, 'up'], check=True)
+            # Re-verify if the interface is UP
+            state_check = subprocess.run(['ip', 'link', 'show', selected_interface], capture_output=True, text=True)
+            if "state UP" in state_check.stdout:
+                print(f"Successfully brought interface {selected_interface} UP.")
+                return selected_interface
+            else:
+                print(f"Failed to bring interface {selected_interface} UP. Exiting.")
+                sys.exit(1)
     except Exception as e:
         print(f"Failed to detect wireless interface: {e}")
         sys.exit(1)
@@ -56,6 +65,25 @@ def check_sudo():
     if os.geteuid() != 0:
         print("This script requires sudo privileges. Please run it with `sudo`.")
         sys.exit(1)
+
+def stop_network_manager():
+    """Temporarily stop NetworkManager to prevent IP reassignment."""
+    try:
+        print("Attempting to stop NetworkManager to prevent IP reassignment...")
+        subprocess.run(['systemctl', 'stop', 'NetworkManager'], check=True)
+        print("NetworkManager stopped successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to stop NetworkManager: {e}")
+        # Proceeding even if NetworkManager couldn't be stopped
+
+def start_network_manager():
+    """Restart NetworkManager after script execution."""
+    try:
+        print("Attempting to start NetworkManager...")
+        subprocess.run(['systemctl', 'start', 'NetworkManager'], check=True)
+        print("NetworkManager started successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to start NetworkManager: {e}")
 
 def check_and_release_ip(interface):
     """Release any existing IP address on the interface to avoid conflicts."""
@@ -100,13 +128,13 @@ def fragment_message_with_sequence(message, chunk_size):
         fragments.append((seq_num, total_fragments, fragment))
     return fragments
 
-def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", "125"]):
+def embed_fragments_into_dhcp_options(fragments, option_list=[43, 60, 77, 125]):
     """
     Embed message fragments into selected DHCP options.
     
     Args:
         fragments (list of tuples): Each tuple contains (sequence_number, total_fragments, fragment).
-        option_list (list of str): DHCP option numbers to use for embedding.
+        option_list (list of int): DHCP option numbers to use for embedding.
     
     Returns:
         list of tuples: Each tuple contains (option_number, embedded_data).
@@ -115,7 +143,7 @@ def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", 
     for i, (seq_num, total_fragments, fragment) in enumerate(fragments):
         if i < len(option_list):
             encoded_fragment = bytes([seq_num]) + bytes([total_fragments]) + fragment
-            options.append((int(option_list[i]), encoded_fragment))
+            options.append((option_list[i], encoded_fragment))
     return options
 
 def get_complete_message(prompt, max_bytes=700):
@@ -176,7 +204,7 @@ def perform_cleanup(server_ip, server_mac, wifi_interface):
                     ("end")
                 ])
             )
-            sendp(release_packet, iface=wifi_interface)
+            sendp(release_packet, iface=wifi_interface, verbose=False)
             print("DHCP Release packet sent successfully.")
         else:
             print("Skipping DHCP Release as server IP is not available.")
@@ -216,21 +244,26 @@ def reassemble_message_from_options(options):
     total_fragments = None
     for opt in options:
         if isinstance(opt, tuple) and opt[0] in [43, 60, 77, 125]:
-            seq_num = opt[1][0]
-            total = opt[1][1]
-            fragment_data = opt[1][2:]
-            fragments[seq_num] = fragment_data
-            if total_fragments is None:
-                total_fragments = total
-            elif total_fragments != total:
-                print("Inconsistent total fragments count.")
-                return None
+            if isinstance(opt[1], bytes) and len(opt[1]) >= 2:
+                seq_num = opt[1][0]
+                total = opt[1][1]
+                fragment_data = opt[1][2:]
+                fragments[seq_num] = fragment_data
+                if total_fragments is None:
+                    total_fragments = total
+                elif total_fragments != total:
+                    print("Inconsistent total fragments count.")
+                    return None
     if total_fragments is None:
         print("No fragments found in options.")
         return None
     if len(fragments) == total_fragments:
-        assembled_data = b"".join([fragments[i] for i in sorted(fragments)])
-        
+        try:
+            assembled_data = b"".join([fragments[i] for i in sorted(fragments)])
+        except KeyError as e:
+            print(f"Missing fragment: {e}")
+            return None
+
         # Validate checksum if the last 32 bytes represent a checksum
         if len(assembled_data) < 32:
             print("Assembled data is too short to contain a checksum.")
@@ -252,42 +285,52 @@ def reassemble_message_from_options(options):
 # Placeholder for Client's public key and IP address
 client_public_key = None
 client_ip = None
+session_id = None
 
 def main():
     global client_public_key, client_ip, server_mac, wifi_interface, session_id, server_private_key, server_ip
 
     # Initial setup
     check_sudo()
+    stop_network_manager()  # Temporarily stop NetworkManager
     wifi_interface = get_wireless_interface()
     check_and_release_ip(wifi_interface)
 
     # Generate RSA Keys for the Server
+    print("Generating server RSA key pair...")
     server_private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     server_public_key = server_private_key.public_key()
     server_public_key_pem = server_public_key.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
+    print("Server RSA key pair generated.")
 
     # Placeholder for server's IP address
     server_ip = "192.168.1.1"  # Replace with your server's actual IP
+    print(f"Server IP Address set to: {server_ip}")
 
     # Get server's MAC address
     server_mac = get_if_hwaddr(wifi_interface)
+    print(f"Server MAC Address: {server_mac}")
 
     # Listen for DHCP Discover packets first
     def handle_discover(packet):
+        global session_id, client_public_key, client_ip
+
         if packet.haslayer(DHCP):
             dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], int)}
             if dhcp_options.get(53) == b'discover' and dhcp_options.get(224) == b"DHushCP-ID":
                 session_id = dhcp_options.get(225)
                 if session_id is None:
                     print("Session ID (option 225) not found in DHCP Discover. Ignoring packet.")
-                    return False  # Continue sniffing
+                    return  # Continue sniffing
                 print("Received valid DHCP Discover from client with DHushCP-ID")
+                print(f"Extracted Session ID: {session_id}")
 
                 # Extract client's MAC address
                 client_mac = packet[Ether].src
+                print(f"Client MAC Address: {client_mac}")
 
                 # Reassemble and process the client's public key
                 client_public_key_pem = reassemble_message_from_options(packet[DHCP].options)
@@ -299,9 +342,10 @@ def main():
                         print(f"Received and reassembled Client's Public Key from IP: {client_ip}")
                     except Exception as e:
                         print(f"Error reassembling Client's Public Key: {e}")
-                        return False  # Continue sniffing if reassembly fails
+                        return  # Continue sniffing if reassembly fails
 
                     # Create and send a DHCP Offer packet with the server's public key and session ID
+                    print("Preparing to send DHCP Offer...")
                     server_public_key_with_checksum = server_public_key_pem + generate_checksum(server_public_key_pem)
                     server_public_key_fragments = fragment_message_with_sequence(server_public_key_with_checksum, 50)
                     server_fragmented_options = embed_fragments_into_dhcp_options(server_public_key_fragments)
@@ -313,20 +357,20 @@ def main():
                         BOOTP(op=2, yiaddr=server_ip, siaddr=server_ip, chaddr=packet[Ether].chaddr) /
                         DHCP(options=[
                             ("message-type", "offer"),
-                            ("param_req_list", [224, 225]),  # Requesting custom options 224 and 225
-                            (224, b"DHushCP-ID"),
+                            ("param_req_list", [43, 60, 77, 125]),  # Requesting custom options 43, 60, 77, 125
+                            (43, b"DHushCP-ID"),
+                            (60, b"DHushCP-ID"),
+                            (77, b"DHushCP-ID"),
+                            (125, b"DHushCP-ID"),
                             (225, session_id),  # Embed the received session ID
                         ] + server_fragmented_options + [("end")])
                     )
 
-                    print("Sending DHCP Offer packet with fragmented Server's Public Key and Session ID")
-                    sendp(offer, iface=wifi_interface)
-                    print("DHCP Offer sent successfully")
-
+                    print("Sending DHCP Offer packet with fragmented Server's Public Key and Session ID...")
+                    sendp(offer, iface=wifi_interface, verbose=False)
+                    print("DHCP Offer sent successfully.")
                 else:
                     print("Failed to reassemble Client's Public Key. Ignoring packet.")
-
-        return False  # Continue sniffing
 
     print("Listening for DHCP Discover packets...")
     # Sniff for DHCP Discover packets and handle accordingly
@@ -340,23 +384,27 @@ def main():
 
     # After sending DHCP Offer, listen for DHCP Request packets
     def handle_request(packet):
-        global client_public_key, client_ip
+        global client_public_key, client_ip, session_id
 
         if packet.haslayer(DHCP):
             dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], int)}
-            if dhcp_options.get(53) == b'request' and dhcp_options.get(224) == b"DHushCP-ID" and dhcp_options.get(225) == session_id:
+            if (dhcp_options.get(53) == b'request' and
+                dhcp_options.get(224) == b"DHushCP-ID" and
+                dhcp_options.get(225) == session_id):
                 print("Received valid DHCP Request from client with matching Session ID")
+                print(f"Client IP Address: {packet[IP].src}")
 
                 # Reassemble and decrypt the client's message
                 encrypted_message_with_checksum = reassemble_message_from_options(packet[DHCP].options)
                 if encrypted_message_with_checksum:
                     try:
                         # Separate message and checksum
-                        encrypted_message, checksum = encrypted_message_with_checksum[:-32], encrypted_message_with_checksum[-32:]
-                        # Verify checksum
+                        encrypted_message = encrypted_message_with_checksum[:-32]
+                        checksum = encrypted_message_with_checksum[-32:]
+                        print("Verifying checksum for the encrypted message...")
                         if generate_checksum(encrypted_message) != checksum:
                             print("Checksum verification failed! Message integrity compromised.")
-                            return False  # Continue sniffing
+                            return  # Continue sniffing
 
                         # Decrypt the message using server's private key
                         decrypted_message = server_private_key.decrypt(
@@ -368,16 +416,16 @@ def main():
                             )
                         )
                         print(f"Received and decrypted message from Client: {decrypted_message.decode()}")
-
                     except Exception as e:
                         print(f"Error during decryption of client's message: {e}")
-                        return False  # Continue sniffing if decryption fails
+                        return  # Continue sniffing if decryption fails
 
                     # Prompt the server user to confirm reading the message
                     wait_for_enter()
 
                     # Prompt the server user to enter a reply message
                     user_reply = get_complete_message("Enter the reply message to send to the client")
+                    print(f"User entered reply: {user_reply}")
 
                     # Check the byte length of the input message
                     message_byte_length = len(user_reply.encode('utf-8'))
@@ -397,6 +445,7 @@ def main():
                                 label=None
                             )
                         )
+                        print("Encrypted the reply message successfully.")
                     except Exception as e:
                         print(f"Error during encryption: {e}")
                         sys.exit(1)
@@ -404,10 +453,12 @@ def main():
                     # Generate checksum for the encrypted reply
                     checksum = generate_checksum(encrypted_reply)
                     encrypted_reply_with_checksum = encrypted_reply + checksum
+                    print("Generated checksum for the encrypted reply.")
 
                     # Fragment the encrypted reply and embed in DHCP Ack
                     encrypted_fragments = fragment_message_with_sequence(encrypted_reply_with_checksum, 251)
                     fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments)
+                    print(f"Fragmented the encrypted reply into {len(encrypted_fragments)} fragments.")
 
                     # Create DHCP Ack packet with encrypted reply and session ID
                     ack = (
@@ -417,20 +468,21 @@ def main():
                         BOOTP(op=2, yiaddr=server_ip, siaddr=server_ip, chaddr=packet[Ether].chaddr) /
                         DHCP(options=[
                             ("message-type", "ack"),
-                            ("param_req_list", [224, 225]),
-                            (224, b"DHushCP-ID"),
-                            (225, session_id)  # Include the received session ID in the ACK
+                            ("param_req_list", [43, 60, 77, 125]),
+                            (43, b"DHushCP-ID"),
+                            (60, b"DHushCP-ID"),
+                            (77, b"DHushCP-ID"),
+                            (125, b"DHushCP-ID"),
+                            (225, session_id),  # Include the received session ID in the ACK
                         ] + fragmented_options + [("end")])
                     )
 
-                    print("Sending DHCP Ack with encrypted reply message and Session ID")
-                    sendp(ack, iface=wifi_interface)
-                    print("Reply message sent successfully")
+                    print("Sending DHCP Ack with encrypted reply message and Session ID...")
+                    sendp(ack, iface=wifi_interface, verbose=False)
+                    print("DHCP Ack sent successfully.")
 
                 else:
                     print("Failed to reassemble or verify the client's message.")
-
-        return False  # Continue sniffing
 
     print("Listening for DHCP Request packets...")
     # Sniff for DHCP Request packets and handle accordingly
@@ -447,8 +499,10 @@ def main():
         if packet.haslayer(DHCP):
             dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], int)}
             if dhcp_options.get(53) == b'release' and dhcp_options.get(225) == session_id:
-                print("Received DHCP Release from client. Performing cleanup...")
+                print("Received DHCP Release from client with matching Session ID.")
+                print("Performing cleanup...")
                 perform_cleanup(server_ip, server_mac, wifi_interface)
+                start_network_manager()  # Restart NetworkManager
                 return True  # Stop sniffing
         return False  # Continue sniffing
 
@@ -459,7 +513,7 @@ def main():
         prn=handle_release,
         iface=wifi_interface,
         store=0,
-        stop_filter=handle_release,
+        stop_filter=lambda x: handle_release(x),
         timeout=120
     )
 
