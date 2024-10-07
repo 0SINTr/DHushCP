@@ -357,8 +357,8 @@ def cleanup_process(iface, session_id, dhushcp_id, private_key, public_key, shar
 def main():
     check_sudo()
     iface = get_wireless_interface()
-    session_id = generate_session_id()
-    print(f"[INFO] Session ID: {session_id.hex()}")
+    session_id = None  # Will be set upon receiving Initiator's packet
+    print("[INFO] Responder is now listening for DHCP Discover packets...")
 
     private_key, public_key = generate_ecc_keypair()
     print("[INFO] Generated ECC key pair.")
@@ -375,33 +375,6 @@ def main():
     )
     listener_thread.daemon = True
     listener_thread.start()
-    print("[INFO] Initiator is now listening for DHCP Discover packets...")
-
-    # Initiator prompts to initiate communication
-    choice = input("Do you want to initiate communication? (y/n): ").strip().lower()
-    if choice == 'y':
-        initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
-        shared_key_holder['initiated'] = True
-
-    # Wait until shared key is established
-    while shared_key_holder['key'] is None:
-        try:
-            time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n[INFO] Interrupted by user.")
-            stop_event.set()
-            cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
-            sys.exit(0)
-
-    # If initiated, prompt for message
-    if shared_key_holder.get('initiated'):
-        user_message = input("Enter your message to send: ").strip()
-        if user_message:
-            encrypted_message = encrypt_message(shared_key_holder['key'], user_message)
-            packet_options = embed_data_into_dhcp_options(encrypted_message)
-            message_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
-            send_dhcp_discover(message_packet, iface)
-            print("[INFO] Sent encrypted message.")
 
     # Keep the script running to listen for incoming messages
     try:
