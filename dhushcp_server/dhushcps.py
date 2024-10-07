@@ -1,4 +1,4 @@
-# Copyright (C) 2024-2025 0SINTr (https://github.com/0SINTr) 
+# Copyright (C) 2024-2025 0SINTr (https://github.com/0SINTr)
 
 import subprocess
 import os
@@ -94,11 +94,11 @@ def generate_checksum(data):
 def fragment_message_with_sequence(message, chunk_size):
     """
     Fragment a message into smaller chunks with sequence numbers and metadata.
-    
+
     Args:
         message (bytes): The message to fragment.
         chunk_size (int): The size of each chunk.
-    
+
     Returns:
         list of tuples: Each tuple contains (sequence_number, total_fragments, fragment).
     """
@@ -113,11 +113,11 @@ def fragment_message_with_sequence(message, chunk_size):
 def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", "125"]):
     """
     Embed message fragments into selected DHCP options.
-    
+
     Args:
         fragments (list of tuples): Each tuple contains (sequence_number, total_fragments, fragment).
         option_list (list of str): DHCP option numbers to use for embedding.
-    
+
     Returns:
         list of tuples: Each tuple contains (option_number, embedded_data).
     """
@@ -134,11 +134,11 @@ def get_complete_message(prompt, max_bytes=700):
     """
     Prompt the user to input a complete message with real-time byte count.
     Type 'END' on a new line to finish.
-    
+
     Args:
         prompt (str): The message prompt to display.
         max_bytes (int): Maximum allowed bytes for the message.
-    
+
     Returns:
         str: The complete user message.
     """
@@ -225,10 +225,10 @@ def perform_cleanup(server_ip, server_mac, wifi_interface):
 def reassemble_message_from_options(options):
     """
     Reassemble the message from fragmented DHCP options with checksum verification.
-    
+
     Args:
         options (list): List of DHCP options.
-    
+
     Returns:
         bytes or None: The reassembled message if checksum is valid, else None.
     """
@@ -313,12 +313,27 @@ def main():
         global client_public_key, client_ip, session_id
 
         if packet.haslayer(DHCP):
-            dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], int)}
-            msg_type = dhcp_options.get(53)
+            print("[DEBUG] DHCP Packet Received.")
+            for opt in packet[DHCP].options:
+                print(f"Option: {opt}")
+
+            # Attempt to extract message type by both numerical and string keys
+            dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], (int, str))}
+
+            # Initialize msg_type
+            msg_type = None
+
+            # Check for numerical key
+            if 53 in dhcp_options:
+                msg_type = dhcp_options[53]
+            # Check for string key
+            elif 'message-type' in dhcp_options:
+                msg_type = dhcp_options['message-type']
+
             print(f"[DEBUG] Received DHCP Message Type: {msg_type}")
 
-            # DHCP Discover has a message type value of 1
-            if msg_type == 1 and dhcp_options.get(224) == b"DHushCP-ID":
+            # DHCP Discover has a message type value of 1 or 'discover'
+            if (msg_type == 1 or msg_type == 'discover') and dhcp_options.get(224) == b"DHushCP-ID":
                 print("[DEBUG] DHCP Discover with DHushCP-ID detected.")
                 session_id = dhcp_options.get(225)
                 if session_id is None:
@@ -385,12 +400,27 @@ def main():
         global client_public_key, client_ip, session_id
 
         if packet.haslayer(DHCP):
-            dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], int)}
-            msg_type = dhcp_options.get(53)
+            print("[DEBUG] DHCP Packet Received.")
+            for opt in packet[DHCP].options:
+                print(f"Option: {opt}")
+
+            # Attempt to extract message type by both numerical and string keys
+            dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], (int, str))}
+
+            # Initialize msg_type
+            msg_type = None
+
+            # Check for numerical key
+            if 53 in dhcp_options:
+                msg_type = dhcp_options[53]
+            # Check for string key
+            elif 'message-type' in dhcp_options:
+                msg_type = dhcp_options['message-type']
+
             print(f"[DEBUG] Received DHCP Message Type: {msg_type}")
 
-            # DHCP Request has a message type value of 3
-            if msg_type == 3 and dhcp_options.get(224) == b"DHushCP-ID" and dhcp_options.get(225) == session_id:
+            # DHCP Request has a message type value of 3 or 'request'
+            if (msg_type == 3 or msg_type == 'request') and dhcp_options.get(224) == b"DHushCP-ID" and dhcp_options.get(225) == session_id:
                 print("[DEBUG] DHCP Request with DHushCP-ID and matching Session ID detected.")
 
                 # Reassemble and decrypt the client's message
@@ -492,12 +522,27 @@ def main():
     # After sending DHCP Ack, listen for DHCP Release packets
     def handle_release(packet):
         if packet.haslayer(DHCP):
-            dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], int)}
-            msg_type = dhcp_options.get(53)
+            print("[DEBUG] DHCP Packet Received.")
+            for opt in packet[DHCP].options:
+                print(f"Option: {opt}")
+
+            # Attempt to extract message type by both numerical and string keys
+            dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], (int, str))}
+
+            # Initialize msg_type
+            msg_type = None
+
+            # Check for numerical key
+            if 53 in dhcp_options:
+                msg_type = dhcp_options[53]
+            # Check for string key
+            elif 'message-type' in dhcp_options:
+                msg_type = dhcp_options['message-type']
+
             print(f"[DEBUG] Received DHCP Message Type: {msg_type}")
 
-            # DHCP Release has a message type value of 7
-            if msg_type == 7 and dhcp_options.get(225) == session_id:
+            # DHCP Release has a message type value of 7 or 'release'
+            if (msg_type == 7 or msg_type == 'release') and dhcp_options.get(225) == session_id:
                 print("[DEBUG] Received DHCP Release with matching Session ID.")
                 perform_cleanup(server_ip, server_mac, wifi_interface)
                 return True  # Stop sniffing
