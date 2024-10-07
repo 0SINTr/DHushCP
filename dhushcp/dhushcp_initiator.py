@@ -21,16 +21,16 @@ from cryptography.exceptions import InvalidTag
 # ==============================
 # Configuration Constants
 # ==============================
-DHCP_OPTION_ID = 224  # Custom DHCP option ID for DHushCP
-SESSION_ID_OPTION = 225  # DHCP option for Session ID
-DATA_OPTION = 226  # DHCP option for embedding data
+DHCP_OPTION_ID = 224       # Custom DHCP option ID for DHushCP
+SESSION_ID_OPTION = 225    # DHCP option for Session ID
+DATA_OPTION = 226           # DHCP option for embedding data
 
 DHUSHCP_ID = b'DHushCP-ID'  # Identifier to recognize DHushCP packets
 
 MAX_DHCP_OPTION_DATA = 255  # Maximum data per DHCP option
-AES_KEY_SIZE = 32  # 256 bits for AES-256
-NONCE_SIZE = 12  # 96 bits for AES-GCM nonce
-CHECKSUM_SIZE = 32  # 256 bits for SHA-256 checksum
+AES_KEY_SIZE = 32           # 256 bits for AES-256
+NONCE_SIZE = 12             # 96 bits for AES-GCM nonce
+CHECKSUM_SIZE = 32          # 256 bits for SHA-256 checksum
 
 # ==============================
 # Utility Functions
@@ -246,14 +246,16 @@ def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public
     shared_key_holder['key'] = shared_key
     print("[INFO] Derived shared AES key.")
 
-    # Send own public key
+    # Serialize own public key
     public_pem = serialize_public_key(private_key.public_key())
+
+    # Embed own public key into DHCP Discover options
     options = embed_data_into_dhcp_options(public_pem)
+
+    # Create and send DHCP Discover with own public key
     packet = create_dhcp_discover(session_id, dhushcp_id, options)
     send_dhcp_discover(packet, iface)
     print("[INFO] Responded to key exchange by sending public key.")
-
-    return shared_key
 
 def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, shared_key_holder, roles_lock):
     """Handle received DHCP Discover packets."""
@@ -373,7 +375,33 @@ def main():
     )
     listener_thread.daemon = True
     listener_thread.start()
-    print("[INFO] Responder is now listening for DHCP Discover packets...")
+    print("[INFO] Initiator is now listening for DHCP Discover packets...")
+
+    # Initiator prompts to initiate communication
+    choice = input("Do you want to initiate communication? (y/n): ").strip().lower()
+    if choice == 'y':
+        initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
+        shared_key_holder['initiated'] = True
+
+    # Wait until shared key is established
+    while shared_key_holder['key'] is None:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n[INFO] Interrupted by user.")
+            stop_event.set()
+            cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
+            sys.exit(0)
+
+    # If initiated, prompt for message
+    if shared_key_holder.get('initiated'):
+        user_message = input("Enter your message to send: ").strip()
+        if user_message:
+            encrypted_message = encrypt_message(shared_key_holder['key'], user_message)
+            packet_options = embed_data_into_dhcp_options(encrypted_message)
+            message_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
+            send_dhcp_discover(message_packet, iface)
+            print("[INFO] Sent encrypted message.")
 
     # Keep the script running to listen for incoming messages
     try:
