@@ -205,27 +205,31 @@ def listen_dhcp_discover(iface, callback, stop_event):
 # Main Communication Functions
 # ==============================
 
-def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public_pem):
-    """Respond to key exchange by sending own public key and derive shared key."""
-    peer_public_key = deserialize_public_key(peer_public_pem)
-    shared_key = derive_shared_key(private_key, peer_public_key)
-    print("[INFO] Derived shared AES key.")
+def respond_to_initiator(iface, session_id, dhushcp_id, private_key, peer_public_pem):
+    """Respond to initiator by sending own public key."""
+    try:
+        peer_public_key = deserialize_public_key(peer_public_pem)
+        shared_key = derive_shared_key(private_key, peer_public_key)
+        print("[INFO] Derived shared AES key.")
 
-    # Send own public key
-    public_pem = serialize_public_key(private_key.public_key())
-    options = embed_data_into_dhcp_options(public_pem)
-    packet = create_dhcp_discover(session_id, dhushcp_id, options)
-    send_dhcp_discover(packet, iface)
-    print("[INFO] Responded to key exchange by sending public key.")
+        # Send responder's public key
+        public_pem = serialize_public_key(private_key.public_key())
+        options = embed_data_into_dhcp_options(public_pem)
+        packet = create_dhcp_discover(session_id, dhushcp_id, options)
+        send_dhcp_discover(packet, iface)
+        print("[INFO] Sent responder's public key.")
 
-    return shared_key
+        return shared_key
+    except Exception as e:
+        print(f"[ERROR] Failed to respond to initiator: {e}")
+        return None
 
-def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, shared_key_holder):
+def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, shared_key_holder, role):
     """Handle received DHCP Discover packets."""
     if DHCP in packet and packet[DHCP].options:
         dhcp_options = packet[DHCP].options
         option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
-
+        
         # Check for DHushCP-ID and Session ID
         if DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == dhushcp_id and SESSION_ID_OPTION in option_dict:
             received_session_id = option_dict[SESSION_ID_OPTION]
@@ -246,11 +250,15 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
             try:
                 # Attempt to deserialize as public key
                 peer_public_key = deserialize_public_key(assembled_data)
-                print("[INFO] Received peer's public key.")
-                # Derive shared key
+                print("[INFO] Received initiator's public key.")
+                # Derive shared key and respond
                 shared_key = derive_shared_key(private_key, peer_public_key)
                 shared_key_holder['key'] = shared_key
                 print("[INFO] Derived shared AES key.")
+
+                # Respond by sending responder's public key
+                shared_key_holder['key'] = respond_to_initiator(iface, session_id, dhushcp_id, private_key, assembled_data)
+
             except Exception:
                 # Assume it's an encrypted message
                 if shared_key_holder['key'] is None:
@@ -268,33 +276,7 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                         send_dhcp_discover(reply_packet, iface)
                         print("[INFO] Sent encrypted reply.")
 
-def reassemble_data_from_dhcp_options(options):
-    """Reassemble data from DHCP option 226, verifying sequence."""
-    fragments = {}
-    total_fragments = None
-    for opt in options:
-        if isinstance(opt, tuple) and opt[0] == DATA_OPTION:
-            data = opt[1]
-            if len(data) < 2:
-                continue
-            seq_num, total = struct.unpack("!BB", data[:2])
-            fragment = data[2:]
-            fragments[seq_num] = fragment
-            if total_fragments is None:
-                total_fragments = total
-            elif total_fragments != total:
-                print("[ERROR] Inconsistent total fragments.")
-                return None
-    if total_fragments is None:
-        return None
-    if len(fragments) != total_fragments:
-        print(f"[ERROR] Expected {total_fragments} fragments, but received {len(fragments)}.")
-        return None
-    # Reassemble
-    assembled = b''.join([fragments[i] for i in range(total_fragments)])
-    return assembled
-
-def cleanup_process(private_key, shared_key_holder):
+def cleanup_process(iface, session_id, dhushcp_id, private_key, public_key, shared_key_holder):
     """Perform cleanup after communication."""
     print("\n[INFO] Initiating cleanup process...")
     confirmation = input("Do you want to perform cleanup? This will delete encryption keys and clear system logs. (y/n): ").strip().lower()
@@ -305,6 +287,7 @@ def cleanup_process(private_key, shared_key_holder):
     # Delete encryption keys
     try:
         private_key = None
+        public_key = None
         shared_key_holder['key'] = None
         gc.collect()
         print("[INFO] Encryption keys deleted from memory.")
@@ -341,17 +324,17 @@ def main():
 
     shared_key_holder = {'key': None}  # To hold the derived shared key
 
+    role = 'responder'  # This script is specifically for the responder
+
     stop_event = threading.Event()
 
     # Start listening in a separate thread
-    listener_thread = threading.Thread(
-        target=listen_dhcp_discover, 
-        args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder), stop_event)
-    )
+    def responder_callback(pkt):
+        handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder, role)
+
+    listener_thread = threading.Thread(target=listen_dhcp_discover, args=(iface, responder_callback, stop_event))
     listener_thread.daemon = True
     listener_thread.start()
-
-    print("[INFO] Listening for DHCP Discover packets...")
 
     # Keep the script running to listen for incoming messages
     try:
@@ -359,7 +342,8 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         print("\n[INFO] Interrupted by user.")
-        cleanup_process(private_key, shared_key_holder)
+        stop_event.set()
+        cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
         sys.exit(0)
 
 if __name__ == "__main__":

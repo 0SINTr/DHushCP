@@ -213,109 +213,6 @@ def initiate_key_exchange(iface, session_id, dhushcp_id, private_key):
     send_dhcp_discover(packet, iface)
     print("[INFO] Initiated key exchange by sending public key.")
 
-def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, shared_key_holder):
-    """Handle received DHCP Discover packets."""
-    if DHCP in packet and packet[DHCP].options:
-        dhcp_options = packet[DHCP].options
-        option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
-
-        # Check for DHushCP-ID and Session ID
-        if DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == dhushcp_id and SESSION_ID_OPTION in option_dict:
-            received_session_id = option_dict[SESSION_ID_OPTION]
-            if received_session_id != session_id:
-                return  # Not our session
-
-            # Check if data is present
-            data_options = [opt for opt in dhcp_options if isinstance(opt, tuple) and opt[0] == DATA_OPTION]
-            if not data_options:
-                return  # No data embedded
-
-            # Reassemble data
-            assembled_data = reassemble_data_from_dhcp_options(dhcp_options)
-            if not assembled_data:
-                return  # Reassembly failed
-
-            # Determine if it's a public key or encrypted message
-            try:
-                # Attempt to deserialize as public key
-                peer_public_key = deserialize_public_key(assembled_data)
-                print("[INFO] Received peer's public key.")
-                # Derive shared key
-                shared_key = derive_shared_key(private_key, peer_public_key)
-                shared_key_holder['key'] = shared_key
-                print("[INFO] Derived shared AES key.")
-            except Exception:
-                # Assume it's an encrypted message
-                if shared_key_holder['key'] is None:
-                    print("[WARNING] Received encrypted message but shared key is not established.")
-                    return
-                plaintext = decrypt_message(shared_key_holder['key'], assembled_data)
-                if plaintext:
-                    print(f"\n[MESSAGE] {plaintext}\n")
-                    # Initiator should not reply, so no prompt here
-
-def reassemble_data_from_dhcp_options(options):
-    """Reassemble data from DHCP option 226, verifying sequence."""
-    fragments = {}
-    total_fragments = None
-    for opt in options:
-        if isinstance(opt, tuple) and opt[0] == DATA_OPTION:
-            data = opt[1]
-            if len(data) < 2:
-                continue
-            seq_num, total = struct.unpack("!BB", data[:2])
-            fragment = data[2:]
-            fragments[seq_num] = fragment
-            if total_fragments is None:
-                total_fragments = total
-            elif total_fragments != total:
-                print("[ERROR] Inconsistent total fragments.")
-                return None
-    if total_fragments is None:
-        return None
-    if len(fragments) != total_fragments:
-        print(f"[ERROR] Expected {total_fragments} fragments, but received {len(fragments)}.")
-        return None
-    # Reassemble
-    assembled = b''.join([fragments[i] for i in range(total_fragments)])
-    return assembled
-
-def cleanup_process(private_key, shared_key_holder):
-    """Perform cleanup after communication."""
-    print("\n[INFO] Initiating cleanup process...")
-    confirmation = input("Do you want to perform cleanup? This will delete encryption keys and clear system logs. (y/n): ").strip().lower()
-    if confirmation != 'y':
-        print("[INFO] Cleanup aborted by user.")
-        return
-
-    # Delete encryption keys
-    try:
-        private_key = None
-        shared_key_holder['key'] = None
-        gc.collect()
-        print("[INFO] Encryption keys deleted from memory.")
-    except Exception as e:
-        print(f"[ERROR] Failed to delete encryption keys: {e}")
-
-    # Clear recent system logs
-    try:
-        print("[INFO] Clearing system logs...")
-        log_files = ['/var/log/syslog', '/var/log/messages']
-        for log in log_files:
-            if os.path.exists(log):
-                subprocess.run(['truncate', '-s', '0', log], check=True)
-                print(f"[DEBUG] Cleared {log}.")
-        print("[INFO] System logs cleared successfully.")
-    except Exception as e:
-        print(f"[ERROR] Failed to clear system logs: {e}")
-
-    # Clear the terminal
-    try:
-        os.system('clear' if os.name == 'posix' else 'cls')
-        print(".")  # Confirmation dot
-    except Exception as e:
-        print(f"[ERROR] Failed to clear the terminal: {e}")
-
 def main():
     check_sudo()
     iface = get_wireless_interface()
@@ -330,43 +227,71 @@ def main():
     stop_event = threading.Event()
 
     # Start listening in a separate thread
-    listener_thread = threading.Thread(
-        target=listen_dhcp_discover, 
-        args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder), stop_event)
-    )
+    def responder_callback(pkt):
+        if DHCP in pkt and pkt[DHCP].options:
+            dhcp_options = pkt[DHCP].options
+            option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
+            
+            # Check for DHushCP-ID and Session ID
+            if DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == DHUSHCP_ID and SESSION_ID_OPTION in option_dict:
+                received_session_id = option_dict[SESSION_ID_OPTION]
+                if received_session_id != session_id:
+                    return  # Not our session
+
+                # Check if data is present
+                data_options = [opt for opt in dhcp_options if isinstance(opt, tuple) and opt[0] == DATA_OPTION]
+                if not data_options:
+                    return  # No data embedded
+
+                # Reassemble data
+                assembled_data = reassemble_data_from_dhcp_options(dhcp_options)
+                if not assembled_data:
+                    return  # Reassembly failed
+
+                # Attempt to deserialize as public key
+                try:
+                    peer_public_key = deserialize_public_key(assembled_data)
+                    print("[INFO] Received responder's public key.")
+                    # Derive shared key
+                    shared_key = derive_shared_key(private_key, peer_public_key)
+                    shared_key_holder['key'] = shared_key
+                    print("[INFO] Derived shared AES key.")
+
+                    # Prompt user for message
+                    user_message = input("Enter your message to send: ").strip()
+                    if user_message:
+                        encrypted_message = encrypt_message(shared_key_holder['key'], user_message)
+                        packet_options = embed_data_into_dhcp_options(encrypted_message)
+                        message_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
+                        send_dhcp_discover(message_packet, iface)
+                        print("[INFO] Sent encrypted message.")
+                except Exception as e:
+                    print(f"[ERROR] Failed to process incoming data: {e}")
+
+    listener_thread = threading.Thread(target=listen_dhcp_discover, args=(iface, responder_callback, stop_event))
     listener_thread.daemon = True
     listener_thread.start()
 
-    # Initiate key exchange
+    # Initiate communication
     initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
 
     # Wait until shared key is established
-    print("[INFO] Waiting to receive responder's public key...")
     while shared_key_holder['key'] is None:
         try:
             time.sleep(1)
         except KeyboardInterrupt:
             print("\n[INFO] Interrupted by user.")
             stop_event.set()
-            cleanup_process(private_key, shared_key_holder)
             sys.exit(0)
 
-    # Prompt user for message
-    user_message = input("Enter your message to send: ").strip()
-    if user_message:
-        encrypted_message = encrypt_message(shared_key_holder['key'], user_message)
-        packet_options = embed_data_into_dhcp_options(encrypted_message)
-        message_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
-        send_dhcp_discover(message_packet, iface)
-        print("[INFO] Sent encrypted message.")
-
-    # Keep the script running to listen for any potential replies (if implemented)
+    # Keep the script running to listen for responses or further communication
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
+        print("\n[INFO] Interrupted by user. Exiting.")
         stop_event.set()
-        cleanup_process(private_key, shared_key_holder)
+        # Perform cleanup if necessary
         sys.exit(0)
 
 if __name__ == "__main__":
