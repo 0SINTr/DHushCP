@@ -174,7 +174,8 @@ As a result, the current limit for messages is **500 characters**.
 
 2. **Install Dependencies:** Ensure you have Python 3.8 or higher installed. Then, install the required Python packages:
    ```bash
-   pip install scapy cryptography
+   sudo apt install python3-scapy
+   sudo apt install python3-cryptography
    ```
 
 3. **Configure Wireless Interface:**
