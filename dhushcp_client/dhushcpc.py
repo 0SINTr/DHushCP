@@ -109,9 +109,9 @@ def fragment_message_with_sequence(message, chunk_size=60):
         fragments.append((seq_num, total_fragments, fragment))
     return fragments
 
-def embed_fragments_into_dhcp_options(fragments, option_list=[150, 151, 152, 153]):
+def embed_fragments_into_dhcp_options(fragments, option_list=[43]):
     """
-    Embed message fragments into selected DHCP options.
+    Embed message fragments into selected DHCP options as suboptions.
 
     Args:
         fragments (list of tuples): Each tuple contains (sequence_number, total_fragments, fragment).
@@ -121,12 +121,15 @@ def embed_fragments_into_dhcp_options(fragments, option_list=[150, 151, 152, 153
         list of tuples: Each tuple contains (option_number, embedded_data).
     """
     options = []
-    print(f"[DEBUG] Embedding fragments into DHCP options {option_list}.")
-    for i, (seq_num, total_fragments, fragment) in enumerate(fragments):
-        if i < len(option_list):
-            encoded_fragment = bytes([seq_num]) + bytes([total_fragments]) + fragment
-            options.append((option_list[i], encoded_fragment))
-            print(f"[DEBUG] Embedded fragment {seq_num + 1}/{total_fragments} into option {option_list[i]}.")
+    suboptions = []
+    print(f"[DEBUG] Embedding fragments into DHCP option {option_list[0]} as suboptions.")
+    for seq_num, total_fragments, fragment in fragments:
+        suboption = bytes([seq_num]) + bytes([total_fragments]) + fragment
+        suboptions.append((seq_num, total_fragments, fragment))
+    # Flatten suboptions into a single bytes object
+    embedded_data = b''.join([opt[1] for opt in fragments])
+    options.append((option_list[0], embedded_data))
+    print(f"[DEBUG] Embedded all fragments into option {option_list[0]}.")
     return options
 
 def get_complete_message(prompt, max_bytes=700):
@@ -230,11 +233,16 @@ def reassemble_message_from_options(options):
     total_fragments = None
     print("[DEBUG] Reassembling message from DHCP options...")
     for opt in options:
-        if isinstance(opt, tuple) and opt[0] in [150, 151, 152, 153]:
-            if isinstance(opt[1], bytes) and len(opt[1]) >= 2:
-                seq_num = opt[1][0]
-                total = opt[1][1]
-                fragment_data = opt[1][2:]
+        if isinstance(opt, tuple) and opt[0] == 43:
+            vendor_data = opt[1]
+            # Assuming each fragment starts with two bytes: seq_num and total_fragments
+            for i in range(0, len(vendor_data), 62):  # 60 bytes chunk + 2 bytes header
+                fragment = vendor_data[i:i+62]
+                if len(fragment) < 2:
+                    continue
+                seq_num = fragment[0]
+                total = fragment[1]
+                fragment_data = fragment[2:]
                 fragments[seq_num] = fragment_data
                 print(f"[DEBUG] Received fragment {seq_num + 1}/{total} from option {opt[0]}")
                 if total_fragments is None:
@@ -311,8 +319,8 @@ def main():
     # Fragment the public key
     public_key_fragments = fragment_message_with_sequence(public_key_with_checksum, chunk_size=60)
 
-    # Embed fragments into DHCP options 150, 151, 152, 153
-    fragmented_options = embed_fragments_into_dhcp_options(public_key_fragments, option_list=[150, 151, 152, 153])
+    # Embed fragments into DHCP option 43
+    fragmented_options = embed_fragments_into_dhcp_options(public_key_fragments, option_list=[43])
 
     # Debug: Print embedded options
     print("[DEBUG] Embedded DHCP options with public key fragments:")
@@ -401,7 +409,7 @@ def main():
 
                     # Fragment the encrypted message and embed in DHCP Request
                     encrypted_fragments = fragment_message_with_sequence(encrypted_message_with_checksum, chunk_size=251)
-                    fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments, option_list=[150, 151, 152, 153])
+                    fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments, option_list=[43])
 
                     # Debug: Print embedded options for DHCP Request
                     print("[DEBUG] Embedded DHCP options with encrypted message fragments:")
