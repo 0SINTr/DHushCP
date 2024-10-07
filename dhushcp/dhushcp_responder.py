@@ -172,6 +172,32 @@ def embed_data_into_dhcp_options(data_bytes):
         options.append((DATA_OPTION, frag))
     return options
 
+def reassemble_data_from_dhcp_options(options):
+    """Reassemble data from DHCP option 226, verifying sequence."""
+    fragments = {}
+    total_fragments = None
+    for opt in options:
+        if isinstance(opt, tuple) and opt[0] == DATA_OPTION:
+            data = opt[1]
+            if len(data) < 2:
+                continue
+            seq_num, total = struct.unpack("!BB", data[:2])
+            fragment = data[2:]
+            fragments[seq_num] = fragment
+            if total_fragments is None:
+                total_fragments = total
+            elif total_fragments != total:
+                print("[ERROR] Inconsistent total fragments.")
+                return None
+    if total_fragments is None:
+        return None
+    if len(fragments) != total_fragments:
+        print(f"[ERROR] Expected {total_fragments} fragments, but received {len(fragments)}.")
+        return None
+    # Reassemble
+    assembled = b''.join([fragments[i] for i in range(total_fragments)])
+    return assembled
+
 def create_dhcp_discover(session_id, dhushcp_id, data_options=[]):
     """Create a DHCP Discover packet with embedded data."""
     return (
@@ -205,31 +231,35 @@ def listen_dhcp_discover(iface, callback, stop_event):
 # Main Communication Functions
 # ==============================
 
-def respond_to_initiator(iface, session_id, dhushcp_id, private_key, peer_public_pem):
-    """Respond to initiator by sending own public key."""
-    try:
-        peer_public_key = deserialize_public_key(peer_public_pem)
-        shared_key = derive_shared_key(private_key, peer_public_key)
-        print("[INFO] Derived shared AES key.")
+def initiate_key_exchange(iface, session_id, dhushcp_id, private_key):
+    """Initiate key exchange by sending public key."""
+    public_pem = serialize_public_key(private_key.public_key())
+    options = embed_data_into_dhcp_options(public_pem)
+    packet = create_dhcp_discover(session_id, dhushcp_id, options)
+    send_dhcp_discover(packet, iface)
+    print("[INFO] Initiated key exchange by sending public key.")
 
-        # Send responder's public key
-        public_pem = serialize_public_key(private_key.public_key())
-        options = embed_data_into_dhcp_options(public_pem)
-        packet = create_dhcp_discover(session_id, dhushcp_id, options)
-        send_dhcp_discover(packet, iface)
-        print("[INFO] Sent responder's public key.")
+def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public_pem):
+    """Respond to key exchange by sending own public key and derive shared key."""
+    peer_public_key = deserialize_public_key(peer_public_pem)
+    shared_key = derive_shared_key(private_key, peer_public_key)
+    print("[INFO] Derived shared AES key.")
 
-        return shared_key
-    except Exception as e:
-        print(f"[ERROR] Failed to respond to initiator: {e}")
-        return None
+    # Send own public key
+    public_pem = serialize_public_key(private_key.public_key())
+    options = embed_data_into_dhcp_options(public_pem)
+    packet = create_dhcp_discover(session_id, dhushcp_id, options)
+    send_dhcp_discover(packet, iface)
+    print("[INFO] Responded to key exchange by sending public key.")
 
-def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, shared_key_holder, role):
+    return shared_key
+
+def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, shared_key_holder, roles_lock):
     """Handle received DHCP Discover packets."""
     if DHCP in packet and packet[DHCP].options:
         dhcp_options = packet[DHCP].options
         option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
-        
+
         # Check for DHushCP-ID and Session ID
         if DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == dhushcp_id and SESSION_ID_OPTION in option_dict:
             received_session_id = option_dict[SESSION_ID_OPTION]
@@ -250,15 +280,19 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
             try:
                 # Attempt to deserialize as public key
                 peer_public_key = deserialize_public_key(assembled_data)
-                print("[INFO] Received initiator's public key.")
-                # Derive shared key and respond
+                print("[INFO] Received peer's public key.")
+                # Derive shared key
                 shared_key = derive_shared_key(private_key, peer_public_key)
                 shared_key_holder['key'] = shared_key
                 print("[INFO] Derived shared AES key.")
 
-                # Respond by sending responder's public key
-                shared_key_holder['key'] = respond_to_initiator(iface, session_id, dhushcp_id, private_key, assembled_data)
-
+                with roles_lock:
+                    if shared_key_holder.get('initiated'):
+                        # Initiator has already sent its public key and is ready to send messages
+                        pass
+                    else:
+                        # Responder sends its public key back
+                        respond_key_exchange(iface, session_id, dhushcp_id, private_key, assembled_data)
             except Exception:
                 # Assume it's an encrypted message
                 if shared_key_holder['key'] is None:
@@ -267,14 +301,15 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                 plaintext = decrypt_message(shared_key_holder['key'], assembled_data)
                 if plaintext:
                     print(f"\n[MESSAGE] {plaintext}\n")
-                    # Prompt user to reply
-                    user_reply = input("Enter your reply (or press Enter to skip): ").strip()
-                    if user_reply:
-                        encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
-                        packet_options = embed_data_into_dhcp_options(encrypted_reply)
-                        reply_packet = create_dhcp_discover(session_id, dhushcp_id, packet_options)
-                        send_dhcp_discover(reply_packet, iface)
-                        print("[INFO] Sent encrypted reply.")
+                    # Only responders should reply
+                    if not shared_key_holder.get('initiated'):
+                        user_reply = input("Enter your reply (or press Enter to skip): ").strip()
+                        if user_reply:
+                            encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
+                            packet_options = embed_data_into_dhcp_options(encrypted_reply)
+                            reply_packet = create_dhcp_discover(session_id, dhushcp_id, packet_options)
+                            send_dhcp_discover(reply_packet, iface)
+                            print("[INFO] Sent encrypted reply.")
 
 def cleanup_process(iface, session_id, dhushcp_id, private_key, public_key, shared_key_holder):
     """Perform cleanup after communication."""
@@ -322,26 +357,50 @@ def main():
     private_key, public_key = generate_ecc_keypair()
     print("[INFO] Generated ECC key pair.")
 
-    shared_key_holder = {'key': None}  # To hold the derived shared key
-
-    role = 'responder'  # This script is specifically for the responder
+    shared_key_holder = {'key': None, 'initiated': False}  # To hold the derived shared key and initiation status
+    roles_lock = threading.Lock()  # To manage access to shared_key_holder
 
     stop_event = threading.Event()
 
     # Start listening in a separate thread
-    def responder_callback(pkt):
-        handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder, role)
-
-    listener_thread = threading.Thread(target=listen_dhcp_discover, args=(iface, responder_callback, stop_event))
+    listener_thread = threading.Thread(
+        target=listen_dhcp_discover, 
+        args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder, roles_lock), stop_event)
+    )
     listener_thread.daemon = True
     listener_thread.start()
+
+    # Decide whether to initiate key exchange
+    choice = input("Do you want to initiate communication? (y/n): ").strip().lower()
+    if choice == 'y':
+        initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
+        shared_key_holder['initiated'] = True
+
+    # Wait until shared key is established
+    while shared_key_holder['key'] is None:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n[INFO] Interrupted by user.")
+            stop_event.set()
+            cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
+            sys.exit(0)
+
+    # If initiated, prompt for message
+    if shared_key_holder.get('initiated'):
+        user_message = input("Enter your message to send: ").strip()
+        if user_message:
+            encrypted_message = encrypt_message(shared_key_holder['key'], user_message)
+            packet_options = embed_data_into_dhcp_options(encrypted_message)
+            message_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
+            send_dhcp_discover(message_packet, iface)
+            print("[INFO] Sent encrypted message.")
 
     # Keep the script running to listen for incoming messages
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\n[INFO] Interrupted by user.")
         stop_event.set()
         cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
         sys.exit(0)
