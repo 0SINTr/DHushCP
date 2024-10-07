@@ -11,7 +11,7 @@ import time
 from scapy.all import *
 from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import IP, UDP
-from scapy.layers.l2 import Ether
+from scapy.layers.l2 import Ether, get_if_hwaddr
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -200,11 +200,12 @@ def reassemble_data_from_dhcp_options(options):
 
 def create_dhcp_discover(session_id, dhushcp_id, data_options=[]):
     """Create a DHCP Discover packet with embedded data."""
+    xid = RandInt()
     return (
         Ether(dst="ff:ff:ff:ff:ff:ff") /
         IP(src="0.0.0.0", dst="255.255.255.255") /
         UDP(sport=68, dport=67) /
-        BOOTP(chaddr=RandMAC().replace(":", ""), xid=RandInt(), flags=0x8000) /
+        BOOTP(chaddr=get_if_hwaddr(iface), xid=xid, flags=0x8000) /
         DHCP(options=[
             ("message-type", "discover"),
             (DHCP_OPTION_ID, dhushcp_id),
@@ -239,17 +240,23 @@ def initiate_key_exchange(iface, session_id, dhushcp_id, private_key):
     send_dhcp_discover(packet, iface)
     print("[INFO] Initiated key exchange by sending public key.")
 
-def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, shared_key_holder):
+def handle_received_dhcp(packet):
     """Handle received DHCP Discover packets."""
     if DHCP in packet and packet[DHCP].options:
         dhcp_options = packet[DHCP].options
         option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
 
+        # Ignore packets sent by ourselves
+        if Ether in packet:
+            src_mac = packet[Ether].src
+            if src_mac == own_mac:
+                return
+
         # Debugging: Print received DHCP options
         print("[DEBUG] Received DHCP Discover with options:", option_dict)
 
         # Check for DHushCP-ID and Session ID
-        if (DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == dhushcp_id and
+        if (DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == DHUSHCP_ID and
             SESSION_ID_OPTION in option_dict and option_dict[SESSION_ID_OPTION] == session_id):
 
             # Check if data is present
@@ -275,7 +282,7 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                 print("[INFO] Derived shared AES key.")
             except Exception as e:
                 # Assume it's an encrypted message
-                print(f"[DEBUG] Data is not a public key. Attempting to decrypt as message. Error: {e}")
+                print(f"[DEBUG] Data is not a public key. Attempting to decrypt as message.")
                 if shared_key_holder['key'] is None:
                     print("[WARNING] Received encrypted message but shared key is not established.")
                     return
@@ -287,13 +294,13 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                     if user_reply:
                         encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
                         packet_options = embed_data_into_dhcp_options(encrypted_reply)
-                        reply_packet = create_dhcp_discover(session_id, dhushcp_id, packet_options)
+                        reply_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
                         send_dhcp_discover(reply_packet, iface)
                         print("[INFO] Sent encrypted reply.")
         else:
             print("[DEBUG] Packet does not match DHushCP criteria or session ID. Ignoring.")
 
-def cleanup_process(iface, private_key, public_key, shared_key_holder):
+def cleanup_process():
     """Perform cleanup after communication."""
     print("\n[INFO] Initiating cleanup process...")
     confirmation = input("Do you want to perform cleanup? This will delete encryption keys and clear system logs. (y/n): ").strip().lower()
@@ -331,8 +338,11 @@ def cleanup_process(iface, private_key, public_key, shared_key_holder):
         print(f"[ERROR] Failed to clear the terminal: {e}")
 
 def main():
+    global iface, session_id, private_key, public_key, shared_key_holder, own_mac
+
     check_sudo()
     iface = get_wireless_interface()
+    own_mac = get_if_hwaddr(iface)
     session_id = generate_session_id()
     print(f"[INFO] Session ID: {session_id.hex()}")
 
@@ -346,7 +356,7 @@ def main():
     # Start listening in a separate thread
     listener_thread = threading.Thread(
         target=listen_dhcp_discover,
-        args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder), stop_event)
+        args=(iface, handle_received_dhcp, stop_event)
     )
     listener_thread.daemon = True
     listener_thread.start()
@@ -364,7 +374,7 @@ def main():
         except KeyboardInterrupt:
             print("\n[INFO] Interrupted by user.")
             stop_event.set()
-            cleanup_process(iface, private_key, public_key, shared_key_holder)
+            cleanup_process()
             sys.exit(0)
 
     # Prompt for message
@@ -382,7 +392,7 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         stop_event.set()
-        cleanup_process(iface, private_key, public_key, shared_key_holder)
+        cleanup_process()
         sys.exit(0)
 
 if __name__ == "__main__":
