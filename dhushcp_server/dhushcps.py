@@ -123,13 +123,8 @@ def embed_fragments_into_dhcp_options(fragments, option_list=[43]):
         list of tuples: Each tuple contains (option_number, embedded_data).
     """
     options = []
-    suboptions = []
     print(f"[DEBUG] Embedding fragments into DHCP option {option_list[0]} as suboptions.")
-    for seq_num, total_fragments, fragment in fragments:
-        suboption = bytes([seq_num]) + bytes([total_fragments]) + fragment
-        suboptions.append(suboption)
-    # Flatten suboptions into a single bytes object
-    embedded_data = b''.join(suboptions)
+    embedded_data = b''.join([bytes([seq_num]) + bytes([total_fragments]) + fragment for (seq_num, total_fragments, fragment) in fragments])
     options.append((option_list[0], embedded_data))
     print(f"[DEBUG] Embedded all fragments into option {option_list[0]}.")
     return options
@@ -447,6 +442,8 @@ def main():
                     print("DHCP Request packet sent successfully")
 
                     return False  # Continue sniffing for DHCP Ack
+
+        return False  # Continue sniffing
 
     print("Listening for DHCP Offer packets...")
     # Sniff for DHCP Offer packets and handle accordingly

@@ -121,13 +121,8 @@ def embed_fragments_into_dhcp_options(fragments, option_list=[43]):
         list of tuples: Each tuple contains (option_number, embedded_data).
     """
     options = []
-    suboptions = []
     print(f"[DEBUG] Embedding fragments into DHCP option {option_list[0]} as suboptions.")
-    for seq_num, total_fragments, fragment in fragments:
-        suboption = bytes([seq_num]) + bytes([total_fragments]) + fragment
-        suboptions.append((seq_num, total_fragments, fragment))
-    # Flatten suboptions into a single bytes object
-    embedded_data = b''.join([opt[1] for opt in fragments])
+    embedded_data = b''.join([bytes([seq_num]) + bytes([total_fragments]) + fragment for (seq_num, total_fragments, fragment) in fragments])
     options.append((option_list[0], embedded_data))
     print(f"[DEBUG] Embedded all fragments into option {option_list[0]}.")
     return options
