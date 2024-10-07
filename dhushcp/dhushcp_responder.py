@@ -2,8 +2,6 @@
 import subprocess
 import os
 import sys
-import math
-import struct
 import gc
 import threading
 import time
@@ -17,6 +15,17 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 
+import sys
+try:
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.validation import Validator, ValidationError
+    from prompt_toolkit.formatted_text import HTML
+    from prompt_toolkit.key_binding import KeyBindings
+except ImportError:
+    print("[ERROR] The 'prompt_toolkit' library is required for this script to run.")
+    print("Please install it using 'pip3 install prompt_toolkit'")
+    sys.exit(1)
+
 # ==============================
 # Configuration Constants
 # ==============================
@@ -25,6 +34,7 @@ SESSION_ID_OPTION = 225    # DHCP option for Session ID
 DATA_OPTION = 226          # DHCP option for embedding data
 
 DHUSHCP_ID = b'DHushCP-ID'  # Identifier to recognize DHushCP packets
+MAX_MESSAGE_LENGTH = 100  # Maximum message length in characters
 
 MAX_DHCP_OPTION_DATA = 255  # Maximum data per DHCP option
 AES_KEY_SIZE = 32           # 256 bits for AES-256
@@ -79,6 +89,42 @@ def check_sudo():
     if os.geteuid() != 0:
         print("This script requires sudo privileges. Please run it with `sudo`.")
         sys.exit(1)
+
+def get_limited_input(prompt_message, max_length):
+    session = PromptSession()
+    bindings = KeyBindings()
+
+    @bindings.add('c-m')  # Enter key
+    def _(event):
+        buffer = event.app.current_buffer
+        if len(buffer.text) > max_length:
+            # Prevent the input from being accepted
+            event.app.current_buffer.validation_state = False
+            event.app.current_buffer.validate_and_handle()
+        else:
+            buffer.validate_and_handle()
+
+    def bottom_toolbar():
+        text_length = len(session.default_buffer.text)
+        remaining = max_length - text_length
+        return HTML(f'Remaining characters: <b><style bg="ansiyellow">{remaining}</style></b>')
+
+    validator = Validator.from_callable(
+        lambda text: len(text) <= max_length,
+        error_message=f'Message exceeds maximum length of {max_length} characters.',
+        move_cursor_to_end=True)
+
+    try:
+        user_input = session.prompt(
+            HTML(prompt_message),
+            validator=validator,
+            validate_while_typing=False,
+            key_bindings=bindings,
+            bottom_toolbar=bottom_toolbar)
+        return user_input
+    except ValidationError:
+        print(f"[ERROR] Message exceeds maximum length of {max_length} characters. Please shorten your message.")
+        return None
 
 def generate_ecc_keypair():
     """Generate ECC key pair."""
@@ -153,45 +199,19 @@ def decrypt_message(aes_key, encrypted_package):
         print(f"[ERROR] Decryption failed: {e}")
         return None
 
-def embed_data_into_dhcp_options(data_bytes):
-    """Embed data into DHCP option 226, handling fragmentation if necessary."""
-    fragments = []
-    max_data_per_option = MAX_DHCP_OPTION_DATA - 2  # 2 bytes for headers
-    total_fragments = math.ceil(len(data_bytes) / max_data_per_option)
-    for i in range(total_fragments):
-        fragment = data_bytes[i*max_data_per_option:(i+1)*max_data_per_option]
-        header = struct.pack("!BB", i, total_fragments)  # Sequence number and total fragments
-        fragments.append(header + fragment)
-    options = []
-    for frag in fragments:
-        options.append((DATA_OPTION, frag))
-    return options
+def embed_data_into_dhcp_option(data_bytes):
+    """Embed data into a single DHCP option 226."""
+    if len(data_bytes) > MAX_DHCP_OPTION_DATA:
+        print("[ERROR] Data exceeds maximum size for a single DHCP option.")
+        return None
+    return [(DATA_OPTION, data_bytes)]
 
-def reassemble_data_from_dhcp_options(options):
-    """Reassemble data from DHCP option 226, verifying sequence."""
-    fragments = {}
-    total_fragments = None
+def reassemble_data_from_dhcp_option(options):
+    """Extract data from a single DHCP option 226."""
     for opt in options:
         if isinstance(opt, tuple) and opt[0] == DATA_OPTION:
-            data = opt[1]
-            if len(data) < 2:
-                continue
-            seq_num, total = struct.unpack("!BB", data[:2])
-            fragment = data[2:]
-            fragments[seq_num] = fragment
-            if total_fragments is None:
-                total_fragments = total
-            elif total_fragments != total:
-                print("[ERROR] Inconsistent total fragments.")
-                return None
-    if total_fragments is None:
-        return None
-    if len(fragments) != total_fragments:
-        print(f"[ERROR] Expected {total_fragments} fragments, but received {len(fragments)}.")
-        return None
-    # Reassemble
-    assembled = b''.join([fragments[i] for i in range(total_fragments)])
-    return assembled
+            return opt[1]
+    return None
 
 def create_dhcp_discover(session_id, dhushcp_id, data_options=[]):
     """Create a DHCP Discover packet with embedded data."""
@@ -243,7 +263,7 @@ def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public
     public_pem = serialize_public_key(private_key.public_key())
 
     # Embed own public key into DHCP Discover options
-    options = embed_data_into_dhcp_options(public_pem)
+    options = embed_data_into_dhcp_option(public_pem)
 
     # Create and send DHCP Discover with own public key
     packet = create_dhcp_discover(session_id, dhushcp_id, options)
@@ -276,7 +296,7 @@ def handle_received_dhcp(packet):
                 return  # No data embedded
 
             # Reassemble data
-            assembled_data = reassemble_data_from_dhcp_options(dhcp_options)
+            assembled_data = reassemble_data_from_dhcp_option(dhcp_options)
             if not assembled_data:
                 print("[ERROR] Failed to reassemble data from DHCP options.")
                 return  # Reassembly failed
@@ -304,10 +324,14 @@ def handle_received_dhcp(packet):
                 if plaintext:
                     print(f"\n[MESSAGE] {plaintext}\n")
                     # Prompt user to reply
-                    user_reply = input("Enter your reply (or press Ctrl+C to exit and cleanup): ").strip()
+                    user_reply = get_limited_input("Enter your reply (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
+                    if user_reply is None:
+                        print(f"[ERROR] Reply exceeds maximum length of {MAX_MESSAGE_LENGTH} characters. Please shorten your reply.")
+                        return
+                    
                     if user_reply:
                         encrypted_reply = encrypt_message(shared_key_holder[session_id]['key'], user_reply)
-                        packet_options = embed_data_into_dhcp_options(encrypted_reply)
+                        packet_options = embed_data_into_dhcp_option(encrypted_reply)
                         reply_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
                         send_dhcp_discover(reply_packet, iface)
                         print("[INFO] Sent encrypted reply.")

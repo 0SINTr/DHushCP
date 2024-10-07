@@ -46,7 +46,6 @@
      - Generates a unique session ID.
      - Detects and selects the active wireless interface.
      - Generates an ECC key pair (private/public keys).
-     - Generates RSA key pair (public/private keys).
      - Embeds its public key, DHushCP-ID (option 224), and session ID (option 225) into the DHCP Discover packet.
      - Sends the DHCP Discover packet and waits for the Responder's public key.
    
@@ -152,7 +151,7 @@ Alice and Bob need to exchange a short message without creating any obvious netw
 #### **Why This Setup Is Effective**
 - The entire exchange happens within **standard DHCP Discover packets**, blending into regular network traffic.
 - There is **no visible Wi-Fi connection** or direct link between Alice and Bob.
-- After the communication ends, both laptops securely delete the exchanged RSA keys and clear the terminal, leaving no traces behind.
+- After the communication ends, both laptops securely delete the ECC keys, system logs and clear the terminal, leaving no traces behind.
 - This approach is useful in scenarios where Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
 
 ### 🧮 **Available Message Space Calculation**
@@ -171,7 +170,7 @@ As a result, the current limit for messages is **500 characters**.
 - **Python Version:** Python 3.8 or higher
 - **Dependencies:**
   - `scapy` for packet crafting and sniffing
-  - `cryptography` for RSA encryption and checksum generation
+  - `cryptography` for ECC encryption and checksum generation
 - **Privileges:** Root or sudo access to send and receive DHCP packets
 - **Network Interface:** Active wireless interface in UP state
 
