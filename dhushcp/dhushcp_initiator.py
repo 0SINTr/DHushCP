@@ -243,6 +243,7 @@ def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public
     """Respond to key exchange by sending own public key and derive shared key."""
     peer_public_key = deserialize_public_key(peer_public_pem)
     shared_key = derive_shared_key(private_key, peer_public_key)
+    shared_key_holder['key'] = shared_key
     print("[INFO] Derived shared AES key.")
 
     # Send own public key
@@ -260,20 +261,26 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
         dhcp_options = packet[DHCP].options
         option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
 
+        # Debugging: Print received DHCP options
+        print("[DEBUG] Received DHCP Discover with options:", option_dict)
+
         # Check for DHushCP-ID and Session ID
         if DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == dhushcp_id and SESSION_ID_OPTION in option_dict:
             received_session_id = option_dict[SESSION_ID_OPTION]
             if received_session_id != session_id:
+                print("[DEBUG] Session ID does not match. Ignoring packet.")
                 return  # Not our session
 
             # Check if data is present
             data_options = [opt for opt in dhcp_options if isinstance(opt, tuple) and opt[0] == DATA_OPTION]
             if not data_options:
+                print("[DEBUG] No data embedded in DHCP Discover. Ignoring packet.")
                 return  # No data embedded
 
             # Reassemble data
             assembled_data = reassemble_data_from_dhcp_options(dhcp_options)
             if not assembled_data:
+                print("[DEBUG] Failed to reassemble data from DHCP options.")
                 return  # Reassembly failed
 
             # Determine if it's a public key or encrypted message
@@ -281,27 +288,25 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                 # Attempt to deserialize as public key
                 peer_public_key = deserialize_public_key(assembled_data)
                 print("[INFO] Received peer's public key.")
-                # Derive shared key
+                # Derive shared key and respond
                 shared_key = derive_shared_key(private_key, peer_public_key)
                 shared_key_holder['key'] = shared_key
                 print("[INFO] Derived shared AES key.")
 
                 with roles_lock:
-                    if shared_key_holder.get('initiated'):
-                        # Initiator has already sent its public key and is ready to send messages
-                        pass
-                    else:
-                        # Responder sends its public key back
+                    if not shared_key_holder.get('initiated'):
+                        # Respond with own public key
                         respond_key_exchange(iface, session_id, dhushcp_id, private_key, assembled_data)
-            except Exception:
+            except Exception as e:
                 # Assume it's an encrypted message
+                print(f"[DEBUG] Data is not a public key. Attempting to decrypt as message. Error: {e}")
                 if shared_key_holder['key'] is None:
                     print("[WARNING] Received encrypted message but shared key is not established.")
                     return
                 plaintext = decrypt_message(shared_key_holder['key'], assembled_data)
                 if plaintext:
                     print(f"\n[MESSAGE] {plaintext}\n")
-                    # Only initiators send messages; responders reply
+                    # Prompt user to reply
                     user_reply = input("Enter your reply (or press Enter to skip): ").strip()
                     if user_reply:
                         encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
@@ -357,43 +362,18 @@ def main():
     print("[INFO] Generated ECC key pair.")
 
     shared_key_holder = {'key': None, 'initiated': False}  # To hold the derived shared key and initiation status
-    roles_lock = threading.Lock()  # To manage access to shared_key_holder
+    roles_lock = threading.Lock()        # To manage access to shared_key_holder
 
     stop_event = threading.Event()
 
     # Start listening in a separate thread
     listener_thread = threading.Thread(
         target=listen_dhcp_discover, 
-        args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHCP_OPTION_ID, session_id, shared_key_holder, roles_lock), stop_event)
+        args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder, roles_lock), stop_event)
     )
     listener_thread.daemon = True
     listener_thread.start()
-
-    # Initiator prompts to initiate communication
-    choice = input("Do you want to initiate communication? (y/n): ").strip().lower()
-    if choice == 'y':
-        initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
-        shared_key_holder['initiated'] = True
-
-    # Wait until shared key is established
-    while shared_key_holder['key'] is None:
-        try:
-            time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n[INFO] Interrupted by user.")
-            stop_event.set()
-            cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
-            sys.exit(0)
-
-    # If initiated, prompt for message
-    if shared_key_holder.get('initiated'):
-        user_message = input("Enter your message to send: ").strip()
-        if user_message:
-            encrypted_message = encrypt_message(shared_key_holder['key'], user_message)
-            packet_options = embed_data_into_dhcp_options(encrypted_message)
-            message_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
-            send_dhcp_discover(message_packet, iface)
-            print("[INFO] Sent encrypted message.")
+    print("[INFO] Responder is now listening for DHCP Discover packets...")
 
     # Keep the script running to listen for incoming messages
     try:

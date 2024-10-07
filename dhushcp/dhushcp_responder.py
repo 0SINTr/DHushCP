@@ -260,20 +260,26 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
         dhcp_options = packet[DHCP].options
         option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
 
+        # Debugging: Print received DHCP options
+        print("[DEBUG] Received DHCP Discover with options:", option_dict)
+
         # Check for DHushCP-ID and Session ID
         if DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == dhushcp_id and SESSION_ID_OPTION in option_dict:
             received_session_id = option_dict[SESSION_ID_OPTION]
             if received_session_id != session_id:
+                print("[DEBUG] Session ID does not match. Ignoring packet.")
                 return  # Not our session
 
             # Check if data is present
             data_options = [opt for opt in dhcp_options if isinstance(opt, tuple) and opt[0] == DATA_OPTION]
             if not data_options:
+                print("[DEBUG] No data embedded in DHCP Discover. Ignoring packet.")
                 return  # No data embedded
 
             # Reassemble data
             assembled_data = reassemble_data_from_dhcp_options(dhcp_options)
             if not assembled_data:
+                print("[DEBUG] Failed to reassemble data from DHCP options.")
                 return  # Reassembly failed
 
             # Determine if it's a public key or encrypted message
@@ -284,10 +290,11 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
 
                 with roles_lock:
                     if shared_key_holder['key'] is None:
-                        # First key exchange
+                        # First key exchange: Respond with own public key
                         respond_key_exchange(iface, session_id, dhushcp_id, private_key, assembled_data)
-            except Exception:
+            except Exception as e:
                 # Assume it's an encrypted message
+                print(f"[DEBUG] Data is not a public key. Attempting to decrypt as message. Error: {e}")
                 if shared_key_holder['key'] is None:
                     print("[WARNING] Received encrypted message but shared key is not established.")
                     return
@@ -298,9 +305,9 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                     user_reply = input("Enter your reply (or press Enter to skip): ").strip()
                     if user_reply:
                         encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
-                        options = embed_data_into_dhcp_options(encrypted_reply)
-                        packet = create_dhcp_discover(session_id, dhushcp_id, options)
-                        send_dhcp_discover(packet, iface)
+                        packet_options = embed_data_into_dhcp_options(encrypted_reply)
+                        reply_packet = create_dhcp_discover(session_id, dhushcp_id, packet_options)
+                        send_dhcp_discover(reply_packet, iface)
                         print("[INFO] Sent encrypted reply.")
 
 def cleanup_process(iface, session_id, dhushcp_id, private_key, public_key, shared_key_holder):
@@ -349,7 +356,7 @@ def main():
     private_key, public_key = generate_ecc_keypair()
     print("[INFO] Generated ECC key pair.")
 
-    shared_key_holder = {'key': None}  # To hold the derived shared key
+    shared_key_holder = {'key': None, 'initiated': False}  # To hold the derived shared key and initiation status
     roles_lock = threading.Lock()        # To manage access to shared_key_holder
 
     stop_event = threading.Event()
@@ -362,16 +369,6 @@ def main():
     listener_thread.daemon = True
     listener_thread.start()
     print("[INFO] Responder is now listening for DHCP Discover packets...")
-
-    # Wait until shared key is established
-    while shared_key_holder['key'] is None:
-        try:
-            time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n[INFO] Interrupted by user.")
-            stop_event.set()
-            cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
-            sys.exit(0)
 
     # Keep the script running to listen for incoming messages
     try:
