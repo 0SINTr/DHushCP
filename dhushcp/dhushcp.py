@@ -6,6 +6,8 @@ import uuid
 import math
 import struct
 import gc
+import threading
+import time
 from scapy.all import *
 from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import IP, UDP
@@ -15,7 +17,6 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
-import threading
 
 # ==============================
 # Configuration Constants
@@ -253,12 +254,12 @@ def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public
 
     return shared_key
 
-def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, shared_key_holder):
+def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, shared_key_holder, roles_lock):
     """Handle received DHCP Discover packets."""
     if DHCP in packet and packet[DHCP].options:
         dhcp_options = packet[DHCP].options
         option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
-        
+
         # Check for DHushCP-ID and Session ID
         if DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == dhushcp_id and SESSION_ID_OPTION in option_dict:
             received_session_id = option_dict[SESSION_ID_OPTION]
@@ -285,9 +286,13 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                 shared_key_holder['key'] = shared_key
                 print("[INFO] Derived shared AES key.")
 
-                # If this host initiated communication, prompt to send a message
-                if shared_key_holder.get('initiated'):
-                    print("[INFO] Key exchange complete. You can now send a message.")
+                with roles_lock:
+                    if shared_key_holder.get('initiated'):
+                        # Initiator has already sent its public key and is ready to send messages
+                        pass
+                    else:
+                        # Responder sends its public key back
+                        respond_key_exchange(iface, session_id, dhushcp_id, private_key, assembled_data)
             except Exception:
                 # Assume it's an encrypted message
                 if shared_key_holder['key'] is None:
@@ -296,14 +301,15 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                 plaintext = decrypt_message(shared_key_holder['key'], assembled_data)
                 if plaintext:
                     print(f"\n[MESSAGE] {plaintext}\n")
-                    # Optionally, reply back
-                    user_reply = input("Enter your reply (or press Enter to skip): ").strip()
-                    if user_reply:
-                        encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
-                        packet_options = embed_data_into_dhcp_options(encrypted_reply)
-                        reply_packet = create_dhcp_discover(session_id, dhushcp_id, packet_options)
-                        send_dhcp_discover(reply_packet, iface)
-                        print("[INFO] Sent encrypted reply.")
+                    # Only responders should reply
+                    if not shared_key_holder.get('initiated'):
+                        user_reply = input("Enter your reply (or press Enter to skip): ").strip()
+                        if user_reply:
+                            encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
+                            packet_options = embed_data_into_dhcp_options(encrypted_reply)
+                            reply_packet = create_dhcp_discover(session_id, dhushcp_id, packet_options)
+                            send_dhcp_discover(reply_packet, iface)
+                            print("[INFO] Sent encrypted reply.")
 
 def cleanup_process(iface, session_id, dhushcp_id, private_key, public_key, shared_key_holder):
     """Perform cleanup after communication."""
@@ -352,11 +358,15 @@ def main():
     print("[INFO] Generated ECC key pair.")
 
     shared_key_holder = {'key': None, 'initiated': False}  # To hold the derived shared key and initiation status
+    roles_lock = threading.Lock()  # To manage access to shared_key_holder
 
     stop_event = threading.Event()
 
     # Start listening in a separate thread
-    listener_thread = threading.Thread(target=listen_dhcp_discover, args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder), stop_event))
+    listener_thread = threading.Thread(
+        target=listen_dhcp_discover, 
+        args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder, roles_lock), stop_event)
+    )
     listener_thread.daemon = True
     listener_thread.start()
 
@@ -369,7 +379,7 @@ def main():
     # Wait until shared key is established
     while shared_key_holder['key'] is None:
         try:
-            pass  # Busy-wait; consider implementing a more efficient wait mechanism
+            time.sleep(1)
         except KeyboardInterrupt:
             print("\n[INFO] Interrupted by user.")
             stop_event.set()
@@ -389,7 +399,7 @@ def main():
     # Keep the script running to listen for incoming messages
     try:
         while True:
-            pass  # Replace with a more graceful wait if needed
+            time.sleep(1)
     except KeyboardInterrupt:
         stop_event.set()
         cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
