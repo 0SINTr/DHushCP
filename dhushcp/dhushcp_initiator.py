@@ -291,14 +291,10 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                 peer_public_key = deserialize_public_key(assembled_data)
                 print("[INFO] Received peer's public key.")
                 # Derive shared key and respond
-                shared_key = derive_shared_key(private_key, peer_public_key)
-                shared_key_holder['key'] = shared_key
-                print("[INFO] Derived shared AES key.")
-
                 with roles_lock:
-                    if not shared_key_holder.get('initiated'):
-                        # Respond with own public key
+                    if not shared_key_holder.get('key'):
                         respond_key_exchange(iface, session_id, dhushcp_id, private_key, assembled_data)
+                        shared_key_holder['initiated'] = True
             except Exception as e:
                 # Assume it's an encrypted message
                 print(f"[DEBUG] Data is not a public key. Attempting to decrypt as message. Error: {e}")
