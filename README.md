@@ -24,7 +24,7 @@
 
 ## 🚀 Features
 
-- **End-to-End Encryption:** Utilizes RSA asymmetric encryption to secure messages between client and server.
+- **End-to-End Encryption:** Utilizes Elliptic Curve Cryptography (ECC) for secure message exchange between Initiator and Responder.
 - **Session Management:** Generates unique session IDs to maintain communication integrity and prevent message mixing.
 - **Message Fragmentation:** Efficiently fragments messages to fit within DHCP option constraints, ensuring seamless transmission.
 - **Automated Cleanup:** Automatically handles session termination and cleans up sensitive data upon completion.
@@ -42,55 +42,53 @@
 ## 🔄 Communication Flow
 
 1. **Initial Exchange:**
-   - **Client:**
+   - **Initiator:**
      - Generates a unique session ID.
      - Detects and selects the active wireless interface.
-     - Releases any existing IP address on the interface.
+     - Generates an ECC key pair (private/public keys).
      - Generates RSA key pair (public/private keys).
-     - Fragments and embeds its public key, DHushCP-ID (option 224), and session ID (option 225) into the DHCP Discover packet.
-     - Sends the DHCP Discover packet and waits for a legitimate DHCP Offer from the server.
+     - Embeds its public key, DHushCP-ID (option 224), and session ID (option 225) into the DHCP Discover packet.
+     - Sends the DHCP Discover packet and waits for the Responder's public key.
    
-   - **Server:**
+   - **Responder:**
      - Listens for DHCP Discover packets with option 224 set to DHushCP-ID.
      - Upon receiving a valid DHCP Discover (option 224 set to DHushCP-ID), extracts the session ID from option 225.
-     - Extracts and reassembles the client's public RSA key from the DHCP options.
-     - Generates its own RSA key pair.
-     - Fragments and embeds its public key, DHushCP-ID, and the extracted session ID into the DHCP Offer packet.
-     - Sends the DHCP Offer packet back to the client and waits for a legitimate DHCP Request.
+     - Extracts and reassembles the Initiator's public ECC key from the correct DHCP option.
+     - Generates its own ECC key pair.
+     - Embeds its public key, DHushCP-ID, and the extracted session ID into a DHCP Discover packet.
+     - Sends the DHCP Discover packet back to the Initiator.
 
 2. **Message Transmission:**
-   - **Client:**
-     - Receives the DHCP Offer from the server.
-     - Extracts and reassembles the server's public RSA key from DHCP options.
+   - **Initiator:**
+     - Receives the Responder's public key from the DHCP Discover packet.
+     - Derives the shared AES key using its private ECC key and the Responder's public ECC key.
      - Prompts the user to input a message.
-     - Encrypts the message using the server's public RSA key.
-     - Generates a checksum for the encrypted message.
+     - Encrypts the message using the shared AES key with AES-GCM and appends a SHA-256 checksum.
+     - Embeds the encrypted message with the checksum and session ID into a DHCP Discover packet.
      - Fragments and embeds the encrypted message with the checksum and session ID into the DHCP Request packet.
-     - Sends the DHCP Request packet and waits for a DHCP Ack from the server.
+     - Sends the DHCP Discover packet containing the encrypted message.
    
-   - **Server:**
-     - Receives and validates the DHCP Request packet by checking options 224 and 225.
-     - Reassembles and decrypts the client's message using its own private RSA key.
-     - Displays the decrypted message to the server user.
-     - Prompts the server user to press Enter to confirm reading the message.
-     - Prompts the server user to input a reply.
-     - Encrypts the reply using the client's public RSA key.
+   - **Responder:**
+     - Receives the encrypted DHCP Discover packet from the Initiator.
+     - Reassembles and decrypts the message using the shared AES key.
+     - Displays the decrypted message to the Responder user.
+     - Prompts the Responder user to input a reply.
+     - Encrypts the reply using the shared AES key with AES-GCM and appends a SHA-256 checksum.
+     - Embeds the encrypted reply with the checksum and session ID into a DHCP Discover packet.
      - Generates a checksum for the encrypted reply.
      - Fragments and embeds the encrypted reply with the checksum and session ID into the DHCP Ack packet.
-     - Sends a DHCP Ack packet back to the client.
-     - Waits for a DHCP Release packet from the client.
+     - Sends the DHCP Discover packet containing the encrypted reply.
 
 3. **Finalization:**
-   - **Client:**
-     - Receives the DHCP Ack from the server.
-     - Reassembles and decrypts the server's reply using its private RSA key.
-     - Displays the message to the user.
-     - Waits for the user to press Enter to confirm reading the message.
-     - Sends a DHCP Release packet and performs cleanup (deleting RSA keys, clearing logs, clearing the screen etc.).
+   - **Initiator:**
+     - Receives the encrypted DHCP Discover packet containing the Responder's reply.
+     - Decrypts the reply using the shared AES key.
+     - Displays the decrypted reply message to the Initiator user.
+     - Upon request, performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
    
-   - **Server:**
-     - Receives the DHCP Release packet.
-     - Automatically performs cleanup by taking the same steps as the client and terminates the session.
+   - **Responder:**
+     - Receives the DHCP Discover sent by the Initiator.
+     - Upon request, performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
 
 ## 🕵️ **Example Use Case for DHushCP**
 
@@ -103,43 +101,56 @@ Alice and Bob need to exchange a short message without creating any obvious netw
 
 #### **Solution: Using DHushCP for Covert Communication**
 
-1. **Step 1: Bob Starts the DHushCP Server**
-   - Bob runs the **DHushCP** server on his laptop.
-   - His server listens for DHCP Discover packets that contain a special identifier (custom DHCP option 224) set by **DHushCP**.
-   - This ensures that his server only responds to legitimate **DHushCP** client packets and ignores other DHCP traffic.
+1. **Step 1: Bob Starts the DHushCP Responder**
+   - Bob runs the **DHushCP** Responder script on his laptop, listening for a Discover packet from Alice.
+   - His Responder listens for DHCP Discover packets that contain a special identifier (DHushCP-ID, option 224) set by **DHushCP**.
+   - This ensures that his Responder only responds to legitimate DHushCP Initiator packets and ignores other DHCP traffic.
 
-2. **Step 2: Alice Starts the DHushCP Client**
-   - Alice runs the **DHushCP** client on her laptop.
-   - Her client sends a DHCP Discover packet that contains her public RSA key, embedded and fragmented into multiple DHCP options, along with the DHushCP-ID (option 224) and a unique session ID (option 225).
+2. **Step 2: Alice Starts the DHushCP Initiator**
+   - Alice runs the **DHushCP** Initiator on her laptop.
+   - Her Initiator sends a DHCP Discover packet that contains her public ECC key, along with the DHushCP-ID (option 224) and a unique session ID (option 225).
    - This packet is **broadcast** in the local wireless network range.
 
-3. **Step 3: Server Responds to Client's DHCP Discover**
-   - Upon receiving Alice's DHCP Discover packet, Bob’s server verifies the DHushCP-ID and session ID.
-   - The server then sends back a DHCP Offer packet containing its own public RSA key, embedded and fragmented across multiple DHCP options, along with the same session ID.
+3. **Step 3: Key Exchange and Secure Communication**
+   - Responder:
+     - Receives Alice's DHCP Discover packet.
+     - Extracts the session ID and reassembles Alice's public ECC key.
+     - Generates its own ECC key pair.
+     - Fragments and embeds its public ECC key, DHushCP-ID, and the extracted session ID into a DHCP Discover packet.
+     - Sends the DHCP Discover packet.
+   
+   - Initiator:
+     - Receives the Responder's DHCP Discover packet.
+     - Extracts and reassembles the Responder's public ECC key.
+     - Derives the shared AES key using her private ECC key and the Responder's public ECC key.
+     - Prompts the user to input a message (e.g., "Meet at the corner at 2 PM").
+     - Encrypts the message using the shared AES key with AES-GCM and appends a SHA-256 checksum.
+     - Fragments and embeds the encrypted message with the checksum and session ID into a DHCP Discover packet.
+     - Sends the DHCP Discover packet containing the encrypted message to the Responder.
 
-4. **Step 4: Key Exchange and Secure Message Transmission**
-   - Once Alice receives the DHCP Offer from Bob, both have securely exchanged public keys.
-   - Alice inputs a short covert message (e.g., **"Meet at the corner at 2 PM"**) and her client encrypts the message using Bob’s public key.
-   - The encrypted message is fragmented into multiple DHCP options and sent to Bob in a DHCP Request packet.
-
-5. **Step 5: Server Receives and Decrypts the Message**
-   - Bob’s server receives the DHCP Request, reassembles the fragments, and decrypts the message using his private RSA key.
-   - The decrypted message is displayed on his terminal.
-   - Bob then inputs a covert response (e.g., **"Understood. See you there."**) and encrypts it using Alice’s public key.
-   - The encrypted reply is fragmented into multiple DHCP options and sent to Alice in a DHCP Ack packet.
-
-6. **Step 6: Client Receives and Decrypts the Reply**
-   - Alice’s client receives the DHCP Ack, reassembles the fragments, and decrypts the reply using her private RSA key.
-   - The decrypted reply message is displayed to her.
-   - Both Alice and Bob perform cleanup by deleting the exchanged RSA keys and clearing any sensitive logs or data from their terminals.
+4. **Step 4: Receiving and Responding to Messages**
+   - Responder:
+     - Receives the encrypted DHCP Discover packet from Alice.
+     - Reassembles and decrypts the message using the shared AES key.
+     - Displays the decrypted message to Bob.
+     - Prompts Bob to input a reply (e.g., "Understood. See you there.").
+     - Encrypts the reply using the shared AES key with AES-GCM and appends a SHA-256 checksum.
+     - Fragments and embeds the encrypted reply with the checksum and session ID into a DHCP Discover packet.
+     - Sends the DHCP Discover packet containing the encrypted reply back to Alice.
+   
+   - Initiator:
+     - Receives the encrypted DHCP Discover packet containing Bob's reply.
+     - Reassembles and decrypts the reply using the shared AES key.
+     - Displays the decrypted reply message to Alice.
+     - Performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
 
 #### ⚠️ **One-Time Message Exchange Design**
-- **DHushCP is designed for short-form, one-time message exchanges**. It supports a single message from the client to the server, followed by a response from the server back to the client.
-- After each message exchange, the session is terminated, and the RSA keys are securely deleted. If further communication is needed, the process should be restarted from scratch, with **new RSA key pairs** being generated.
+- **DHushCP is designed for short-form, one-time message exchanges**.
+- After each message exchange, the session is terminated, and the ECC keys are securely deleted. If further communication is needed, the process should be restarted from scratch, with **new ECC key pairs** being generated.
 - This approach maximizes security by ensuring that each communication session is unique and does not reuse any cryptographic keys.
 
 #### **Why This Setup Is Effective**
-- The entire exchange happens within **standard DHCP packets**, blending into regular network traffic.
+- The entire exchange happens within **standard DHCP Discover packets**, blending into regular network traffic.
 - There is **no visible Wi-Fi connection** or direct link between Alice and Bob.
 - After the communication ends, both laptops securely delete the exchanged RSA keys and clear the terminal, leaving no traces behind.
 - This approach is useful in scenarios where Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
