@@ -231,14 +231,17 @@ def listen_dhcp_discover(iface, callback, stop_event):
 # Main Communication Functions
 # ==============================
 
-def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public_pem):
-    """Respond to key exchange by sending own public key."""
-    try:
-        peer_public_key = deserialize_public_key(peer_public_pem)
-    except Exception as e:
-        print(f"[ERROR] Failed to deserialize peer's public key: {e}")
-        return
+def initiate_key_exchange(iface, session_id, dhushcp_id, private_key):
+    """Initiate key exchange by sending public key."""
+    public_pem = serialize_public_key(private_key.public_key())
+    options = embed_data_into_dhcp_options(public_pem)
+    packet = create_dhcp_discover(session_id, dhushcp_id, options)
+    send_dhcp_discover(packet, iface)
+    print("[INFO] Initiated key exchange by sending public key.")
 
+def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public_pem):
+    """Respond to key exchange by sending own public key and derive shared key."""
+    peer_public_key = deserialize_public_key(peer_public_pem)
     shared_key = derive_shared_key(private_key, peer_public_key)
     shared_key_holder['key'] = shared_key
     print("[INFO] Derived shared AES key.")
@@ -287,10 +290,14 @@ def handle_received_dhcp(packet, iface, private_key, dhushcp_id, session_id, sha
                 # Attempt to deserialize as public key
                 peer_public_key = deserialize_public_key(assembled_data)
                 print("[INFO] Received peer's public key.")
+                # Derive shared key and respond
+                shared_key = derive_shared_key(private_key, peer_public_key)
+                shared_key_holder['key'] = shared_key
+                print("[INFO] Derived shared AES key.")
 
                 with roles_lock:
-                    if shared_key_holder['key'] is None:
-                        # First key exchange: Respond with own public key
+                    if not shared_key_holder.get('initiated'):
+                        # Respond with own public key
                         respond_key_exchange(iface, session_id, dhushcp_id, private_key, assembled_data)
             except Exception as e:
                 # Assume it's an encrypted message
@@ -363,12 +370,38 @@ def main():
 
     # Start listening in a separate thread
     listener_thread = threading.Thread(
-        target=listen_dhcp_discover,
+        target=listen_dhcp_discover, 
         args=(iface, lambda pkt: handle_received_dhcp(pkt, iface, private_key, DHUSHCP_ID, session_id, shared_key_holder, roles_lock), stop_event)
     )
     listener_thread.daemon = True
     listener_thread.start()
-    print("[INFO] Responder is now listening for DHCP Discover packets...")
+    print("[INFO] Initiator is now listening for DHCP Discover packets...")
+
+    # Initiator prompts to initiate communication
+    choice = input("Do you want to initiate communication? (y/n): ").strip().lower()
+    if choice == 'y':
+        initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
+        shared_key_holder['initiated'] = True
+
+    # Wait until shared key is established
+    while shared_key_holder['key'] is None:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n[INFO] Interrupted by user.")
+            stop_event.set()
+            cleanup_process(iface, session_id, DHUSHCP_ID, private_key, public_key, shared_key_holder)
+            sys.exit(0)
+
+    # If initiated, prompt for message
+    if shared_key_holder.get('initiated'):
+        user_message = input("Enter your message to send: ").strip()
+        if user_message:
+            encrypted_message = encrypt_message(shared_key_holder['key'], user_message)
+            packet_options = embed_data_into_dhcp_options(encrypted_message)
+            message_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
+            send_dhcp_discover(message_packet, iface)
+            print("[INFO] Sent encrypted message.")
 
     # Keep the script running to listen for incoming messages
     try:
