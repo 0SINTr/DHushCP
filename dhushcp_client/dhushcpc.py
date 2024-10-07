@@ -1,4 +1,4 @@
-# Copyright (C) 2024-2025 0SINTr (https://github.com/0SINTr) 
+# Copyright (C) 2024-2025 0SINTr (https://github.com/0SINTr)
 
 import subprocess
 import os
@@ -105,13 +105,13 @@ def fragment_message_with_sequence(message, chunk_size):
         fragments.append((seq_num, total_fragments, fragment))
     return fragments
 
-def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", "125"]):
+def embed_fragments_into_dhcp_options(fragments, option_list=[43, 60, 77, 125]):
     """
     Embed message fragments into selected DHCP options.
 
     Args:
         fragments (list of tuples): Each tuple contains (sequence_number, total_fragments, fragment).
-        option_list (list of str): DHCP option numbers to use for embedding.
+        option_list (list of int): DHCP option numbers to use for embedding.
 
     Returns:
         list of tuples: Each tuple contains (option_number, embedded_data).
@@ -163,7 +163,7 @@ def wait_for_enter(prompt="Press Enter to confirm you read the message..."):
             break
         print("Please press only Enter to confirm.")
 
-def perform_cleanup():
+def perform_cleanup(client_mac, server_ip, wifi_interface):
     """Perform cleanup after sending the message."""
     global client_private_key, server_public_key
 
@@ -173,29 +173,35 @@ def perform_cleanup():
             Ether(src=client_mac, dst="ff:ff:ff:ff:ff:ff") /
             IP(src="0.0.0.0", dst="255.255.255.255") /
             UDP(sport=68, dport=67) /
-            BOOTP(chaddr=client_mac) /
+            BOOTP(chaddr=client_mac.replace(":", ""), xid=RandInt(), flags=0x8000) /
             DHCP(options=[
                 ("message-type", "release"),
                 ("server_id", server_ip),
                 ("end")
             ])
         )
-        sendp(release_packet, iface=wifi_interface)
+        sendp(release_packet, iface=wifi_interface, verbose=False)
         print("DHCP Release packet sent successfully.")
     except Exception as e:
         print(f"Failed to send DHCP Release packet: {e}")
 
     # Clear RSA keys from memory
-    del client_private_key
-    del server_public_key
+    try:
+        del client_private_key
+        del server_public_key
+        print("[DEBUG] Cleared RSA keys from memory.")
+    except Exception as e:
+        print(f"Error deleting RSA keys: {e}")
 
     # Clear DHCP logs to remove any traces (Not Recommended)
     try:
         print("Attempting to clear system logs to remove DHCP traces...")
         if os.path.exists('/var/log/syslog'):
             subprocess.run(['truncate', '-s', '0', '/var/log/syslog'], check=True)
+            print("[DEBUG] Cleared /var/log/syslog.")
         if os.path.exists('/var/log/messages'):
             subprocess.run(['truncate', '-s', '0', '/var/log/messages'], check=True)
+            print("[DEBUG] Cleared /var/log/messages.")
         print("System logs cleared successfully.")
     except Exception as e:
         print(f"Failed to clear logs: {e}")
@@ -217,16 +223,17 @@ def reassemble_message_from_options(options):
     fragments = {}
     total_fragments = None
     for opt in options:
-        if opt[0] in ["43", "60", "77", "125"]:
-            seq_num = opt[1][0]
-            total = opt[1][1]
-            fragment_data = opt[1][2:]
-            fragments[seq_num] = fragment_data
-            if total_fragments is None:
-                total_fragments = total
-            elif total_fragments != total:
-                print("Inconsistent total fragments count.")
-                return None
+        if opt[0] in [43, 60, 77, 125]:
+            if isinstance(opt[1], bytes) and len(opt[1]) >= 2:
+                seq_num = opt[1][0]
+                total = opt[1][1]
+                fragment_data = opt[1][2:]
+                fragments[seq_num] = fragment_data
+                if total_fragments is None:
+                    total_fragments = total
+                elif total_fragments != total:
+                    print("Inconsistent total fragments count.")
+                    return None
     if total_fragments is None:
         print("No fragments found in options.")
         return None
@@ -278,6 +285,7 @@ def main():
 
     # Get client's MAC address
     client_mac = get_if_hwaddr(wifi_interface)
+    print(f"[DEBUG] Client MAC address: {client_mac}")
 
     # Prepare the DHCP Discover packet with fragmented Client's Public Key, DHushCP-ID, and Session ID
     dhushcp_id = b"DHushCP-ID"  # Custom identifier for DHushCP
@@ -286,11 +294,17 @@ def main():
     public_key_fragments = fragment_message_with_sequence(public_key_with_checksum, 50)
     fragmented_options = embed_fragments_into_dhcp_options(public_key_fragments)
 
+    # Debug: Print all fragmented options
+    print("[DEBUG] Fragmented DHCP Options:")
+    for opt in fragmented_options:
+        print(f"Option {opt[0]}: {opt[1]}")
+
+    # Create DHCP Discover packet
     discover = (
         Ether(src=client_mac, dst="ff:ff:ff:ff:ff:ff") /
         IP(src="0.0.0.0", dst="255.255.255.255") /
         UDP(sport=68, dport=67) /
-        BOOTP(chaddr=client_mac) /
+        BOOTP(chaddr=client_mac.replace(":", ""), xid=RandInt(), flags=0x8000) /
         DHCP(options=[
             ("message-type", "discover"),
             ("param_req_list", [224, 225]),  # Requesting custom options 224 and 225
@@ -299,8 +313,13 @@ def main():
         ] + fragmented_options + [("end")])
     )
 
+    # Debug: Print all embedded options
+    print("[DEBUG] Embedded DHCP Options:")
+    for opt in fragmented_options:
+        print(f"Option {opt[0]}: {opt[1]}")
+
     print("Sending DHCP Discover packet with fragmented Client's Public Key, DHushCP-ID, and Session ID")
-    sendp(discover, iface=wifi_interface)
+    sendp(discover, iface=wifi_interface, verbose=False)
     print("DHCP Discover packet sent successfully")
 
     # Listen for DHCP Offer from the server
@@ -309,11 +328,15 @@ def main():
 
         if packet.haslayer(DHCP):
             dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], int)}
-            if dhcp_options.get(53) == b'offer' and dhcp_options.get(224) == dhushcp_id and dhcp_options.get(225) == session_id:
+            msg_type = dhcp_options.get(53)
+            print("[DEBUG] Received DHCP Message Type:", msg_type)
+
+            if msg_type == b'offer' and dhcp_options.get(224) == dhushcp_id and dhcp_options.get(225) == session_id:
                 print("Received valid DHCP Offer from server with matching Session ID")
 
                 # Extract server's IP address
                 server_ip = packet[IP].src
+                print(f"[DEBUG] Server IP address: {server_ip}")
 
                 # Reassemble and process the server's public key
                 server_public_key_pem = reassemble_message_from_options(packet[DHCP].options)
@@ -347,6 +370,7 @@ def main():
                                 label=None
                             )
                         )
+                        print("[DEBUG] Encrypted the message using Server's Public Key.")
                     except Exception as e:
                         print(f"Error during encryption: {e}")
                         sys.exit(1)
@@ -359,12 +383,17 @@ def main():
                     encrypted_fragments = fragment_message_with_sequence(encrypted_message_with_checksum, 251)
                     fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments)
 
+                    # Debug: Print all fragmented options for Request
+                    print("[DEBUG] Fragmented DHCP Options for Request:")
+                    for opt in fragmented_options:
+                        print(f"Option {opt[0]}: {opt[1]}")
+
                     # Create DHCP Request packet with encrypted message and session ID
                     request = (
                         Ether(src=client_mac, dst="ff:ff:ff:ff:ff:ff") /
                         IP(src="0.0.0.0", dst="255.255.255.255") /
                         UDP(sport=68, dport=67) /
-                        BOOTP(chaddr=client_mac) /
+                        BOOTP(chaddr=client_mac.replace(":", ""), xid=RandInt(), flags=0x8000) /
                         DHCP(options=[
                             ("message-type", "request"),
                             ("param_req_list", [224, 225]),
@@ -375,7 +404,7 @@ def main():
                     )
 
                     print("Sending DHCP Request packet with encrypted message and Session ID")
-                    sendp(request, iface=wifi_interface)
+                    sendp(request, iface=wifi_interface, verbose=False)
                     print("DHCP Request packet sent successfully")
 
                     return False  # Continue sniffing for DHCP Ack
@@ -385,7 +414,7 @@ def main():
     print("Listening for DHCP Offer packets...")
     # Sniff for DHCP Offer packets and handle accordingly
     sniff(
-        filter="udp and (port 67 or 68)",
+        filter="udp and (port 67 or port 68)",
         prn=handle_offer,
         iface=wifi_interface,
         stop_filter=lambda x: False,  # Continue sniffing
@@ -396,7 +425,10 @@ def main():
     def handle_ack(packet):
         if packet.haslayer(DHCP):
             dhcp_options = {opt[0]: opt[1] for opt in packet[DHCP].options if isinstance(opt[0], int)}
-            if dhcp_options.get(53) == b'ack' and dhcp_options.get(224) == dhushcp_id and dhcp_options.get(225) == session_id:
+            msg_type = dhcp_options.get(53)
+            print("[DEBUG] Received DHCP Message Type:", msg_type)
+
+            if msg_type == b'ack' and dhcp_options.get(224) == dhushcp_id and dhcp_options.get(225) == session_id:
                 print("Received valid DHCP Ack from server with matching Session ID")
 
                 # Reassemble and decrypt the server's reply
@@ -427,7 +459,7 @@ def main():
                     wait_for_enter()
 
                     # Send DHCP Release packet and perform cleanup
-                    perform_cleanup()
+                    perform_cleanup(client_mac, server_ip, wifi_interface)
 
                     return True  # Stop sniffing
         return False  # Continue sniffing
@@ -435,7 +467,7 @@ def main():
     print("Listening for DHCP Ack packets...")
     # Sniff for DHCP Ack packets and handle accordingly
     sniff(
-        filter="udp and (port 67 or 68)",
+        filter="udp and (port 67 or port 68)",
         prn=handle_ack,
         iface=wifi_interface,
         stop_filter=handle_ack,
