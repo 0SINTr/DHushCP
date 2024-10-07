@@ -1,3 +1,4 @@
+# CLIENT CODE:
 # Copyright (C) 2024-2025 0SINTr (https://github.com/0SINTr)
 
 import subprocess
@@ -108,7 +109,7 @@ def fragment_message_with_sequence(message, chunk_size=60):
         fragments.append((seq_num, total_fragments, fragment))
     return fragments
 
-def embed_fragments_into_dhcp_options(fragments, option_list=[43, 60, 77, 125]):
+def embed_fragments_into_dhcp_options(fragments, option_list=[150, 151, 152, 153]):
     """
     Embed message fragments into selected DHCP options.
 
@@ -178,7 +179,7 @@ def perform_cleanup():
             Ether(src=client_mac, dst="ff:ff:ff:ff:ff:ff") /
             IP(src="0.0.0.0", dst="255.255.255.255") /
             UDP(sport=68, dport=67) /
-            BOOTP(chaddr=client_mac) /
+            BOOTP(chaddr=client_mac.replace(":", ""), xid=RandInt(), flags=0x8000) /
             DHCP(options=[
                 ("message-type", "release"),
                 ("server_id", server_ip),
@@ -229,7 +230,7 @@ def reassemble_message_from_options(options):
     total_fragments = None
     print("[DEBUG] Reassembling message from DHCP options...")
     for opt in options:
-        if opt[0] in [43, 60, 77, 125]:
+        if isinstance(opt, tuple) and opt[0] in [150, 151, 152, 153]:
             if isinstance(opt[1], bytes) and len(opt[1]) >= 2:
                 seq_num = opt[1][0]
                 total = opt[1][1]
@@ -310,8 +311,8 @@ def main():
     # Fragment the public key
     public_key_fragments = fragment_message_with_sequence(public_key_with_checksum, chunk_size=60)
 
-    # Embed fragments into DHCP options 43, 60, 77, 125
-    fragmented_options = embed_fragments_into_dhcp_options(public_key_fragments, option_list=[43, 60, 77, 125])
+    # Embed fragments into DHCP options 150, 151, 152, 153
+    fragmented_options = embed_fragments_into_dhcp_options(public_key_fragments, option_list=[150, 151, 152, 153])
 
     # Debug: Print embedded options
     print("[DEBUG] Embedded DHCP options with public key fragments:")
@@ -400,7 +401,7 @@ def main():
 
                     # Fragment the encrypted message and embed in DHCP Request
                     encrypted_fragments = fragment_message_with_sequence(encrypted_message_with_checksum, chunk_size=251)
-                    fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments, option_list=[43, 60, 77, 125])
+                    fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments, option_list=[150, 151, 152, 153])
 
                     # Debug: Print embedded options for DHCP Request
                     print("[DEBUG] Embedded DHCP options with encrypted message fragments:")

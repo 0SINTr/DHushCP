@@ -1,3 +1,4 @@
+# SERVER CODE:
 # Copyright (C) 2024-2025 0SINTr (https://github.com/0SINTr)
 
 import subprocess
@@ -110,13 +111,13 @@ def fragment_message_with_sequence(message, chunk_size):
         fragments.append((seq_num, total_fragments, fragment))
     return fragments
 
-def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", "125"]):
+def embed_fragments_into_dhcp_options(fragments, option_list=[150, 151, 152, 153]):
     """
     Embed message fragments into selected DHCP options.
 
     Args:
         fragments (list of tuples): Each tuple contains (sequence_number, total_fragments, fragment).
-        option_list (list of str): DHCP option numbers to use for embedding.
+        option_list (list of int): DHCP option numbers to use for embedding.
 
     Returns:
         list of tuples: Each tuple contains (option_number, embedded_data).
@@ -126,7 +127,7 @@ def embed_fragments_into_dhcp_options(fragments, option_list=["43", "60", "77", 
     for i, (seq_num, total_fragments, fragment) in enumerate(fragments):
         if i < len(option_list):
             encoded_fragment = bytes([seq_num]) + bytes([total_fragments]) + fragment
-            options.append((int(option_list[i]), encoded_fragment))
+            options.append((option_list[i], encoded_fragment))
             print(f"[DEBUG] Embedded fragment {seq_num + 1}/{total_fragments} into option {option_list[i]}.")
     return options
 
@@ -183,7 +184,7 @@ def perform_cleanup(server_ip, server_mac, wifi_interface):
                 Ether(src=server_mac, dst="ff:ff:ff:ff:ff:ff") /
                 IP(src="0.0.0.0", dst="255.255.255.255") /
                 UDP(sport=68, dport=67) /
-                BOOTP(chaddr=server_mac) /
+                BOOTP(chaddr=server_mac.replace(":", ""), xid=RandInt(), flags=0x8000) /
                 DHCP(options=[
                     ("message-type", "release"),
                     ("server_id", server_ip),
@@ -236,7 +237,7 @@ def reassemble_message_from_options(options):
     total_fragments = None
     print("[DEBUG] Reassembling message from DHCP options...")
     for opt in options:
-        if isinstance(opt, tuple) and opt[0] in [43, 60, 77, 125]:
+        if isinstance(opt, tuple) and opt[0] in [150, 151, 152, 153]:
             if isinstance(opt[1], bytes) and len(opt[1]) >= 2:
                 seq_num = opt[1][0]
                 total = opt[1][1]
@@ -278,13 +279,14 @@ def reassemble_message_from_options(options):
 # Main Execution Flow
 # ==============================
 
-# Placeholder for Client's public key and IP address
-client_public_key = None
-client_ip = None
-session_id = None  # Initialize session_id globally
+# Placeholder for Server's public key and IP address
+server_public_key = None
+server_ip = None
+server_mac = None
+session_id = None
 
 def main():
-    global client_public_key, client_ip, server_mac, wifi_interface, session_id, server_private_key, server_ip
+    global server_public_key, server_ip, session_id, client_private_key, server_ip, client_mac, wifi_interface
 
     # Initial setup
     check_sudo()
@@ -360,21 +362,21 @@ def main():
 
                     # Create and send a DHCP Offer packet with the server's public key and session ID
                     server_public_key_with_checksum = server_public_key_pem + generate_checksum(server_public_key_pem)
-                    server_public_key_fragments = fragment_message_with_sequence(server_public_key_with_checksum, 50)
-                    server_fragmented_options = embed_fragments_into_dhcp_options(server_public_key_fragments)
+                    server_public_key_fragments = fragment_message_with_sequence(server_public_key_with_checksum, chunk_size=50)
+                    server_fragmented_options = embed_fragments_into_dhcp_options(server_public_key_fragments, option_list=[150, 151, 152, 153])
 
                     offer = (
                         Ether(src=server_mac, dst=client_mac) /
                         IP(src=server_ip, dst="255.255.255.255") /  # Broadcast to client
                         UDP(sport=67, dport=68) /
-                        BOOTP(op=2, yiaddr=server_ip, siaddr=server_ip, chaddr=packet[Ether].chaddr) /
+                        BOOTP(op=2, yiaddr=server_ip, siaddr=server_ip, chaddr=client_mac.replace(":", "")) /
                         DHCP(options=[
                             ("message-type", "offer"),
                             ("param_req_list", [224, 225]),  # Requesting custom options 224 and 225
-                            (43, b"DHushCP-ID"),
-                            (60, b"DHushCP-ID"),
-                            (77, b"DHushCP-ID"),
-                            (125, b"DHushCP-ID"),
+                            (150, b"DHushCP-ID"),
+                            (151, b"DHushCP-ID"),
+                            (152, b"DHushCP-ID"),
+                            (153, b"DHushCP-ID"),
                             (225, session_id),  # Embed the received session ID
                         ] + server_fragmented_options + [("end")])
                     )
@@ -483,22 +485,22 @@ def main():
                     encrypted_reply_with_checksum = encrypted_reply + checksum
 
                     # Fragment the encrypted reply and embed in DHCP Ack
-                    encrypted_fragments = fragment_message_with_sequence(encrypted_reply_with_checksum, 251)
-                    fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments)
+                    encrypted_fragments = fragment_message_with_sequence(encrypted_reply_with_checksum, chunk_size=251)
+                    fragmented_options = embed_fragments_into_dhcp_options(encrypted_fragments, option_list=[150, 151, 152, 153])
 
                     # Create DHCP Ack packet with encrypted reply and session ID
                     ack = (
                         Ether(src=server_mac, dst=packet[Ether].src) /
                         IP(src=server_ip, dst=client_ip) /
                         UDP(sport=67, dport=68) /
-                        BOOTP(op=2, yiaddr=server_ip, siaddr=server_ip, chaddr=packet[Ether].chaddr) /
+                        BOOTP(op=2, yiaddr=server_ip, siaddr=server_ip, chaddr=client_mac.replace(":", "")) /
                         DHCP(options=[
                             ("message-type", "ack"),
                             ("param_req_list", [224, 225]),
-                            (43, b"DHushCP-ID"),
-                            (60, b"DHushCP-ID"),
-                            (77, b"DHushCP-ID"),
-                            (125, b"DHushCP-ID"),
+                            (150, b"DHushCP-ID"),
+                            (151, b"DHushCP-ID"),
+                            (152, b"DHushCP-ID"),
+                            (153, b"DHushCP-ID"),
                             (225, session_id)  # Include the received session ID in the ACK
                         ] + fragmented_options + [("end")])
                     )
