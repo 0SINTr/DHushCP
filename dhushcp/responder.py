@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright 2024-2025 © 0SINTr (https://github.com/0SINTr)
 import os
 import gc
 import sys
