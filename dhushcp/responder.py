@@ -275,68 +275,72 @@ def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public
 def handle_received_dhcp(packet):
     """Handle received DHCP Discover packets."""
     global DHUSHCP_ID
-    if DHCP in packet and packet[DHCP].options:
-        dhcp_options = packet[DHCP].options
-        option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
+    print(Style.BRIGHT + "[DEBUG] " + Style.RESET_ALL + "Responder received a packet.")
+    try:
+        if DHCP in packet and packet[DHCP].options:
+            dhcp_options = packet[DHCP].options
+            option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
 
-        # Ignore packets sent by ourselves
-        if Ether in packet:
-            src_mac = packet[Ether].src
-            if src_mac == own_mac:
-                return
-
-        # Debugging: Print received DHCP options
-        #print("[DEBUG] Received DHCP Discover with options:", option_dict)
-
-        # Check for DHushCP-ID and Session ID
-        if DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == DHUSHCP_ID and SESSION_ID_OPTION in option_dict:
-            session_id = option_dict[SESSION_ID_OPTION]
-
-            # Check if data is present
-            data_options = [opt for opt in dhcp_options if isinstance(opt, tuple) and opt[0] == DATA_OPTION]
-            if not data_options:
-                print("[WARNING] No data embedded in DHCP Discover. Ignoring packet.")
-                return  # No data embedded
-
-            # Reassemble data
-            assembled_data = reassemble_data_from_dhcp_option(dhcp_options)
-            if not assembled_data:
-                print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + "Failed to reassemble data from DHCP options.")
-                return  # Reassembly failed
-
-            # Determine if it's a public key or encrypted message
-            try:
-                # Attempt to deserialize as public key
-                peer_public_key = deserialize_public_key(assembled_data)
-                print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Received peer's public key.")
-
-                # Check if shared key already exists
-                if session_id in shared_key_holder:
-                    #print("[DEBUG] Shared key already established for this session.")
+            # Ignore packets sent by ourselves
+            if Ether in packet:
+                src_mac = packet[Ether].src
+                if src_mac == own_mac:
                     return
 
-                # Derive shared key and respond
-                respond_key_exchange(iface, session_id, DHUSHCP_ID, private_key, assembled_data)
-            except Exception as e:
-                # Assume it's an encrypted message
-                #print(f"[DEBUG] Data is not a public key. Attempting to decrypt as message.")
-                if session_id not in shared_key_holder or shared_key_holder[session_id]['key'] is None:
-                    print("[WARNING] Received encrypted message but shared key is not established.")
-                    return
-                plaintext = decrypt_message(shared_key_holder[session_id]['key'], assembled_data)
-                if plaintext:
-                    print(Style.BRIGHT + Fore.GREEN + "[MESSAGE RECEIVED] " + Style.RESET_ALL + f"{plaintext}\n")
-                    # Prompt user to reply
-                    user_reply = get_limited_input("\n-> Enter your reply (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
-                    if user_reply is None:
-                        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Reply exceeds maximum length of {MAX_MESSAGE_LENGTH} characters. Please shorten your reply.")
-                        return               
-                    if user_reply:
-                        encrypted_reply = encrypt_message(shared_key_holder[session_id]['key'], user_reply)
-                        packet_options = embed_data_into_dhcp_option(encrypted_reply)
-                        reply_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
-                        send_dhcp_discover(reply_packet, iface)
-                        print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Sent encrypted reply.")
+            # Debugging: Print received DHCP options
+            #print("[DEBUG] Received DHCP Discover with options:", option_dict)
+
+            # Check for DHushCP-ID and Session ID
+            if DHCP_OPTION_ID in option_dict and option_dict[DHCP_OPTION_ID] == DHUSHCP_ID and SESSION_ID_OPTION in option_dict:
+                session_id = option_dict[SESSION_ID_OPTION]
+
+                # Check if data is present
+                data_options = [opt for opt in dhcp_options if isinstance(opt, tuple) and opt[0] == DATA_OPTION]
+                if not data_options:
+                    print("[WARNING] No data embedded in DHCP Discover. Ignoring packet.")
+                    return  # No data embedded
+
+                # Reassemble data
+                assembled_data = reassemble_data_from_dhcp_option(dhcp_options)
+                if not assembled_data:
+                    print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + "Failed to reassemble data from DHCP options.")
+                    return  # Reassembly failed
+
+                # Determine if it's a public key or encrypted message
+                try:
+                    # Attempt to deserialize as public key
+                    peer_public_key = deserialize_public_key(assembled_data)
+                    print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Received peer's public key.")
+
+                    # Check if shared key already exists
+                    if session_id in shared_key_holder:
+                        #print("[DEBUG] Shared key already established for this session.")
+                        return
+
+                    # Derive shared key and respond
+                    respond_key_exchange(iface, session_id, DHUSHCP_ID, private_key, assembled_data)
+                except Exception as e:
+                    # Assume it's an encrypted message
+                    #print(f"[DEBUG] Data is not a public key. Attempting to decrypt as message.")
+                    if session_id not in shared_key_holder or shared_key_holder[session_id]['key'] is None:
+                        print("[WARNING] Received encrypted message but shared key is not established.")
+                        return
+                    plaintext = decrypt_message(shared_key_holder[session_id]['key'], assembled_data)
+                    if plaintext:
+                        print(Style.BRIGHT + Fore.GREEN + "[MESSAGE RECEIVED] " + Style.RESET_ALL + f"{plaintext}\n")
+                        # Prompt user to reply
+                        user_reply = get_limited_input("\n-> Enter your reply (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
+                        if user_reply is None:
+                            print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Reply exceeds maximum length of {MAX_MESSAGE_LENGTH} characters. Please shorten your reply.")
+                            return               
+                        if user_reply:
+                            encrypted_reply = encrypt_message(shared_key_holder[session_id]['key'], user_reply)
+                            packet_options = embed_data_into_dhcp_option(encrypted_reply)
+                            reply_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
+                            send_dhcp_discover(reply_packet, iface)
+                            print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Sent encrypted reply.")
+    except Exception as e:
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Exception in handle_received_dhcp: {e}")
 
 def cleanup_process():
     """Perform cleanup after communication."""

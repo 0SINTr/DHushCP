@@ -390,7 +390,7 @@ def main():
     iface = get_wireless_interface()
     own_mac = get_if_hwaddr(iface)
     session_id = generate_session_id()
-    #print(fStyle.BRIGHT + "[INFO] " + Style.RESET_ALL + "Session ID: {session_id.hex()}")
+    #print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + f"Session ID: {session_id.hex()}")
 
     private_key, public_key = generate_ecc_keypair()
     print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Generated ECC key pair.")
