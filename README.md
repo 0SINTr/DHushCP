@@ -97,6 +97,7 @@ Imagine a scenario where two individuals (Alice and Bob) need to communicate cov
 #### **Problem**
 Alice and Bob need to exchange a crucial message without using any messaging app, or creating any obvious network link or visible ad-hoc connection that could attract attention and be easily detected by anyone monitoring the network.
 
+🔴 **Prerequisites:**
 - Prior to their arrival, Alice and Bob **should already know** the DHUSHCP_ID they're going to use *and* who's going to run the Initiator and the Responder, respectively.
 - Ensure that the DHUSHCP_ID is communicated securely between the users before initiating communication. Use a strong, unpredictable identifier (e.g. 'n1c3_w3ath3r_eh?').
 
