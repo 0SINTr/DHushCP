@@ -329,7 +329,7 @@ def handle_received_dhcp(packet):
                     if plaintext:
                         print(Style.BRIGHT + Fore.GREEN + "\n[MESSAGE RECEIVED] " + Style.RESET_ALL + f"{plaintext}\n")
                         # Prompt user to reply
-                        user_reply = get_limited_input("\n-> Enter your reply (max 100 characters, or press Ctrl+C to exit and cleanup):\n", MAX_MESSAGE_LENGTH)
+                        user_reply = get_limited_input(Style.BRIGHT + "-> Enter your reply " + Style.RESET_ALL + "(max 100 characters, or press Ctrl+C to exit and cleanup):\n", MAX_MESSAGE_LENGTH)
                         if user_reply is None:
                             print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Reply exceeds maximum length of {MAX_MESSAGE_LENGTH} characters. Please shorten your reply.")
                             return               
