@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
+from colorama import Fore, Style
 
 import sys
 try:
@@ -24,8 +25,8 @@ try:
     from prompt_toolkit.formatted_text import HTML
     from prompt_toolkit.key_binding import KeyBindings
 except ImportError:
-    print("[ERROR] The 'prompt_toolkit' library is required for this script to run.")
-    print("[INFO] Please install it using 'sudo apt install python3-prompt-toolkit'")
+    print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + "The 'prompt_toolkit' library is required for this script to run.")
+    print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Please install it using 'sudo apt install python3-prompt-toolkit'")
     sys.exit(1)
 
 # ==============================
@@ -54,41 +55,41 @@ def get_wireless_interface():
         interfaces = [line.split()[1] for line in lines if "Interface" in line]
 
         if not interfaces:
-            print("[ERROR] No wireless interface found. Exiting.")
+            print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + "No wireless interface found. Exiting.")
             sys.exit(1)
 
         if len(interfaces) > 1:
-            print("[INPUT] Multiple wireless interfaces detected. Please choose one:")
+            print(Style.BRIGHT + "[INPUT] " + Style.RESET_ALL + "Multiple wireless interfaces detected. Please choose one:")
             for idx, iface in enumerate(interfaces):
                 print(f"{idx + 1}. {iface}")
             try:
-                choice = int(input("[INPUT] Enter the number corresponding to your choice: ")) - 1
+                choice = int(input(Style.BRIGHT + "[INPUT] " + Style.RESET_ALL + "Enter the number corresponding to your choice: ")) - 1
                 if choice < 0 or choice >= len(interfaces):
-                    print("[ERROR] Invalid selection. Exiting.")
+                    print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + "Invalid selection. Exiting.")
                     sys.exit(1)
                 selected_interface = interfaces[choice]
             except ValueError:
-                print("[ERROR] Invalid input. Please enter a number.")
+                print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + "Invalid input. Please enter a number.")
                 sys.exit(1)
         else:
             selected_interface = interfaces[0]
-            print(f"[INFO] Detected wireless interface: {selected_interface}")
+            print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + f"Detected wireless interface: {selected_interface}")
 
         # Check if the interface is UP
         state_check = subprocess.run(['ip', 'link', 'show', selected_interface], capture_output=True, text=True)
         if "state UP" in state_check.stdout:
             return selected_interface
         else:
-            print(f"[ERROR] Interface {selected_interface} is DOWN. Please bring it UP before running the script.")
+            print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Interface {selected_interface} is DOWN. Please bring it UP before running the script.")
             sys.exit(1)
     except Exception as e:
-        print(f"[ERROR] Failed to detect wireless interface: {e}")
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Failed to detect wireless interface: {e}")
         sys.exit(1)
 
 def check_sudo():
     """Ensure the script is run with sudo privileges."""
     if os.geteuid() != 0:
-        print("[INFO] This script requires sudo privileges. Please run it with `sudo`.")
+        print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "This script requires sudo privileges. Please run it with `sudo`.")
         sys.exit(1)
 
 def get_limited_input(prompt_message, max_length):
@@ -124,7 +125,7 @@ def get_limited_input(prompt_message, max_length):
             bottom_toolbar=bottom_toolbar)
         return user_input
     except ValidationError:
-        print(f"[ERROR] Message exceeds maximum length of {max_length} characters. Please shorten your message.")
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Message exceeds maximum length of {max_length} characters. Please shorten your message.")
         return None
 
 def generate_ecc_keypair():
@@ -189,21 +190,21 @@ def decrypt_message(aes_key, encrypted_package):
         calculated_checksum = digest.finalize()
 
         if calculated_checksum != received_checksum:
-            print("<SAFETY> Checksum verification failed! Message integrity compromised.")
+            print(Style.BRIGHT + "<SAFETY> Checksum verification failed! Message integrity compromised." + Style.RESET_ALL)
             return None
 
         return plaintext
     except InvalidTag:
-        print("[ERROR] AES-GCM authentication failed! Message may have been tampered with.")
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + "AES-GCM authentication failed! Message may have been tampered with.")
         return None
     except Exception as e:
-        print(f"[ERROR] Decryption failed: {e}")
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Decryption failed: {e}")
         return None
 
 def embed_data_into_dhcp_option(data_bytes):
     """Embed data into a single DHCP option 226."""
     if len(data_bytes) > MAX_DHCP_OPTION_DATA:
-        print("[ERROR] Data exceeds maximum size for a single DHCP option.")
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + "Data exceeds maximum size for a single DHCP option.")
         return None
     return [(DATA_OPTION, data_bytes)]
 
@@ -232,7 +233,7 @@ def create_dhcp_discover(session_id, dhushcp_id, data_options=[]):
 def send_dhcp_discover(packet, iface):
     """Send a DHCP Discover packet."""
     sendp(packet, iface=iface, verbose=False)
-    print("[INFO] Sent DHCP Discover packet.")
+    print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Sent DHCP Discover packet.")
 
 def listen_dhcp_discover(iface, callback, stop_event):
     """Listen for DHCP Discover packets."""
@@ -253,12 +254,12 @@ def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public
     try:
         peer_public_key = deserialize_public_key(peer_public_pem)
     except Exception as e:
-        print(f"[ERROR] Failed to deserialize peer's public key: {e}")
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Failed to deserialize peer's public key: {e}")
         return
 
     shared_key = derive_shared_key(private_key, peer_public_key)
     shared_key_holder[session_id] = {'key': shared_key}
-    print("[INFO] Derived shared AES key.")
+    print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Derived shared AES key.")
 
     # Serialize own public key
     public_pem = serialize_public_key(private_key.public_key())
@@ -269,7 +270,7 @@ def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public
     # Create and send DHCP Discover with own public key
     packet = create_dhcp_discover(session_id, dhushcp_id, options)
     send_dhcp_discover(packet, iface)
-    print("[INFO] Responded to key exchange by sending public key.")
+    print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Responded to key exchange by sending public key.")
 
 def handle_received_dhcp(packet):
     """Handle received DHCP Discover packets."""
@@ -300,14 +301,14 @@ def handle_received_dhcp(packet):
             # Reassemble data
             assembled_data = reassemble_data_from_dhcp_option(dhcp_options)
             if not assembled_data:
-                print("[ERROR] Failed to reassemble data from DHCP options.")
+                print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + "Failed to reassemble data from DHCP options.")
                 return  # Reassembly failed
 
             # Determine if it's a public key or encrypted message
             try:
                 # Attempt to deserialize as public key
                 peer_public_key = deserialize_public_key(assembled_data)
-                print("[INFO] Received peer's public key.")
+                print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Received peer's public key.")
 
                 # Check if shared key already exists
                 if session_id in shared_key_holder:
@@ -324,25 +325,25 @@ def handle_received_dhcp(packet):
                     return
                 plaintext = decrypt_message(shared_key_holder[session_id]['key'], assembled_data)
                 if plaintext:
-                    print(f"\n[MESSAGE] {plaintext}\n")
+                    print(Style.BRIGHT + Fore.GREEN + "[MESSAGE RECEIVED] " + Style.RESET_ALL + f"{plaintext}\n")
                     # Prompt user to reply
-                    user_reply = get_limited_input("\nEnter your reply (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
+                    user_reply = get_limited_input("\n-> Enter your reply (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
                     if user_reply is None:
-                        print(f"[ERROR] Reply exceeds maximum length of {MAX_MESSAGE_LENGTH} characters. Please shorten your reply.")
+                        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Reply exceeds maximum length of {MAX_MESSAGE_LENGTH} characters. Please shorten your reply.")
                         return               
                     if user_reply:
                         encrypted_reply = encrypt_message(shared_key_holder[session_id]['key'], user_reply)
                         packet_options = embed_data_into_dhcp_option(encrypted_reply)
                         reply_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
                         send_dhcp_discover(reply_packet, iface)
-                        print("[INFO] Sent encrypted reply.")
+                        print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Sent encrypted reply.")
 
 def cleanup_process():
     """Perform cleanup after communication."""
     print("\n[INFO] Initiating cleanup process...")
     confirmation = input("Do you want to perform cleanup? This will delete encryption keys and clear system logs. (y/n): ").strip().lower()
     if confirmation != 'y':
-        print("[INFO] Cleanup aborted by user.")
+        print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Cleanup aborted by user.")
         return
 
     # Delete encryption keys
@@ -351,33 +352,33 @@ def cleanup_process():
         public_key = None
         shared_key_holder.clear()
         gc.collect()
-        print("[INFO] Encryption keys deleted from memory.")
+        print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Encryption keys deleted from memory.")
     except Exception as e:
-        print(f"[ERROR] Failed to delete encryption keys: {e}")
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Failed to delete encryption keys: {e}")
 
     # Clear recent system logs
     try:
-        print("[INFO] Clearing system logs...")
+        print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Clearing system logs...")
         log_files = ['/var/log/syslog', '/var/log/auth.log']
         for log in log_files:
             if os.path.exists(log):
                 subprocess.run(['truncate', '-s', '0', log], check=True)
                 #print(f"[DEBUG] Cleared {log}.")
-        print("[INFO] System logs cleared successfully.")
+        print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "System logs cleared successfully.")
     except Exception as e:
-        print(f"[ERROR] Failed to clear system logs: {e}")
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Failed to clear system logs: {e}")
 
     # Clear the terminal
     try:
         os.system('clear' if os.name == 'posix' else 'cls')
         print(".")  # Confirmation dot
     except Exception as e:
-        print(f"[ERROR] Failed to clear the terminal: {e}")
+        print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Failed to clear the terminal: {e}")
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='DHushCP Script')
     parser.add_argument('-i', '--id', type=str, required=True,
-                        help='Unique DHushCP identifier (shared secret between users)')
+                        help='Unique DHushCP ID (shared secret between users)')
     args = parser.parse_args()
     return args
 
@@ -388,14 +389,14 @@ def main():
     args = parse_arguments()
     DHUSHCP_ID = args.id.encode('utf-8')
 
-    print("<SAFETY> Use Ctrl+C at any time to initiate cleanup and exit.")
+    print(Style.BRIGHT + "\n<SAFETY> Use Ctrl+C at any time to initiate cleanup and exit.\n" + Style.RESET_ALL)
     check_sudo()
     iface = get_wireless_interface()
     own_mac = get_if_hwaddr(iface)
 
     private_key, public_key = generate_ecc_keypair()
-    print("[INFO] Generated ECC key pair.")
-    print("[INFO] Responder is now listening for DHCP Discover packets.")
+    print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Generated ECC key pair.")
+    print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "Responder is now listening for DHCP Discover packets.")
 
     shared_key_holder = {}  # To hold the derived shared keys per session_id
 
