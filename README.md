@@ -22,7 +22,7 @@
 
 **DHushCP** is a tool designed to facilitate **secure covert communication** between two parties - a client and server - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. **DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges over existing network infrastructures without raising suspicion.
 
-### TLDR
+### 💬 TLDR
 Steganography refers to hiding secrets in plain sight, and **DHushCP** does this two-fold:
 
 - **It hides an encrypted message sent from A to B in an unused DHCP option field.**
@@ -33,19 +33,11 @@ Steganography refers to hiding secrets in plain sight, and **DHushCP** does this
 ## 🚀 Features
 
 - **End-to-End Encryption:** Utilizes Elliptic Curve Cryptography (ECC) for secure message exchange between Initiator and Responder.
+- **Message Embedding:** Efficiently embeds keys and messages to fit within DHCP option constraints, ensuring seamless transmission.
+- **Checksum Verification:** Implements SHA-256 checksums to ensure data integrity and authenticity.
 - **Session Management:** Generates unique session IDs to maintain communication integrity and prevent message mixing.
-- **Message Fragmentation:** Efficiently fragments messages to fit within DHCP option constraints, ensuring seamless transmission.
 - **Automated Cleanup:** Automatically handles session termination and cleans up sensitive data upon completion.
 - **User-Friendly Interface:** Interactive prompts guide users through message input and confirmation steps.
-- **Checksum Verification:** Implements SHA-256 checksums to ensure data integrity and authenticity.
-
-## 📈 Advantages
-
-- **Stealthy Communication:** Leverages the common DHCP protocol to facilitate hidden message exchanges, reducing the likelihood of detection.
-- **No Additional Infrastructure:** Operates outside existing network setups without the need for specialized hardware or software.
-- **Flexible Integration:** Easily integrates into various network environments, making it adaptable for different use cases.
-- **User Control:** Empowers users with interactive prompts, ensuring that communication is deliberate and controlled.
-- **Robust Security:** Combines multiple security mechanisms to safeguard data against interception and unauthorized access.
 
 ## 🔄 Communication Flow
 
