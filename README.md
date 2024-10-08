@@ -10,8 +10,8 @@
   - [🔍 Overview](#-overview)
   - [🚀 Features](#-features)
   - [🔄 Communication Flow](#-communication-flow)
-  - [🕵️ Example Use Case for DHushCP](#%EF%B8%8F-example-use-case-for-dhushcp)
-  - [🧮 Available Message Space Calculation](#-available-message-space-calculation)
+  - [🕵️ Example Use Case](#%EF%B8%8F-example-use-case-for-dhushcp)
+  - [🧮 Available Message Space](#-available-message-space-calculation)
   - [🖥️ System Requirements](#%EF%B8%8F-system-requirements)
   - [🛠️ Installation & Setup](#%EF%B8%8F-installation--setup)
   - [⚠️ Disclaimer](#%EF%B8%8F-disclaimer)
@@ -19,19 +19,23 @@
 
 ## 🔍 Overview
 
-**DHushCP** is a tool designed to facilitate **secure covert communication** between two parties - an Initiator and Responder - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. **DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges over existing network infrastructures without raising suspicion.
+**DHushCP** is a tool designed to facilitate **secure covert communication** between two parties - an Initiator and a Responder - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. 
 
-### 💬 TLDR
-Steganography refers to hiding secrets in plain sight, and **DHushCP** does this two-fold:
+**DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within DHCP protocol fields that are not commonly inspected, such as Option 226. 
+
+By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges outside existing network infrastructures without raising suspicion.
+
+### 💬 TLDR; DHushCP and Steganography
+**Steganography** refers to hiding secrets in plain sight, and **DHushCP** does this two-fold:
 
 - **It hides an encrypted message sent from A to B in an unused DHCP option field.**
-  - **DHushCP** doesn't require the two hosts to route their communication through a specific network, access point or centralized app. By using plain DHCP packets, the communication blends into normal traffic. Although the messages are **fully encrypted** back and forth between the two hosts, it is advisable to keep a low number of message exchanges per session, so that the amount of Discover packets being sent by the hosts doesn't raise any eyebrows. See the **Use Case** below for an example.
+  - **DHushCP** doesn't require the two hosts to route their communication through a specific network, access point or centralized app. By using plain DHCP Discover packets, the communication blends into normal traffic. Although the messages are **fully encrypted** back and forth between the two hosts, it is advisable to keep a **low number** of message exchanges per session, so that the amount of Discover packets being sent by the hosts doesn't raise any eyebrows. See the **Use Case** below for an example.
 - **It uses only DHCP Discover packets to communicate the keys and messages.**
-  - At first, the use of DHCP Discover packets might seem strange, due to the broadcast nature of these packets. However, this obfuscates the **DHushCP** communication even more compared to even the first iteration of **DHushCP** where the two hosts were actually performing a complete *Discover - Offer - Request - Ack* sequence that was hiding the message exchange. By using DHCP Discover packets only, **DHushCP** is now stealthier since no rogue DHCP server activity can be detected by a sniffer.
+  - At first, the use of **DHCP Discover** packets might seem strange, due to the broadcast nature of these packets. However, this obfuscates the **DHushCP** communication even more compared to even the first iteration of **DHushCP** where the two hosts were actually performing a complete *Discover - Offer - Request - Ack* sequence that was hiding the message exchange. By using DHCP Discover packets only, **DHushCP** is now stealthier since no rogue DHCP server activity can be detected by a sniffer.
 
 ## 🚀 Features
 
-- **End-to-End Encryption:** Utilizes Elliptic Curve Cryptography (ECC) for secure message exchange between Initiator and Responder.
+- **End-to-End Encryption:** Utilizes Elliptic Curve Cryptography (ECC) for secure message exchange between **Initiator** and **Responder**.
 - **Message Embedding:** Efficiently embeds keys and messages to fit within DHCP option constraints, ensuring seamless transmission.
 - **Checksum Verification:** Implements SHA-256 checksums to ensure data integrity and authenticity.
 - **Session Management:** Generates unique session IDs to maintain communication integrity and prevent message mixing.
@@ -45,36 +49,33 @@ Steganography refers to hiding secrets in plain sight, and **DHushCP** does this
      - Generates a unique session ID.
      - Detects and selects the active wireless interface.
      - Generates an ECC key pair (private/public keys).
-     - Embeds its public key, DHushCP-ID (option 224), and session ID (option 225) into the DHCP Discover packet.
+     - Embeds its public key, the DHUSHCP_ID (option 224), and session ID (option 225) into the DHCP Discover packet.
      - Sends the DHCP Discover packet and waits for the Responder's public key.
    
    - **Responder:**
-     - Listens for DHCP Discover packets with option 224 set to DHushCP-ID.
-     - Upon receiving a valid DHCP Discover (option 224 set to DHushCP-ID), extracts the session ID from option 225.
+     - Listens for DHCP Discover packets with option 224 set to DHUSHCP_ID.
+     - Upon receiving a valid DHCP Discover (option 224 set to DHUSHCP_ID), extracts the session ID from option 225.
      - Extracts and reassembles the Initiator's public ECC key from the correct DHCP option.
      - Generates its own ECC key pair.
-     - Embeds its public key, DHushCP-ID, and the extracted session ID into a DHCP Discover packet.
-     - Sends the DHCP Discover packet back to the Initiator.
+     - Embeds its public key, the DHUSHCP_ID, and the extracted session ID into a new DHCP Discover packet.
+     - Sends the DHCP Discover and waits for Initiator's message.
 
 2. **Message Transmission:**
    - **Initiator:**
      - Receives the Responder's public key from the DHCP Discover packet.
      - Derives the shared AES key using its private ECC key and the Responder's public ECC key.
-     - Prompts the user to input a message.
+     - Prompts the user to input a message to send to the Responder.
      - Encrypts the message using the shared AES key with AES-GCM and appends a SHA-256 checksum.
-     - Embeds the encrypted message with the checksum and session ID into a DHCP Discover packet.
-     - Fragments and embeds the encrypted message with the checksum and session ID into the DHCP Request packet.
+     - Embeds the encrypted message with the checksum and session ID into a new DHCP Discover packet.
      - Sends the DHCP Discover packet containing the encrypted message.
    
    - **Responder:**
      - Receives the encrypted DHCP Discover packet from the Initiator.
-     - Reassembles and decrypts the message using the shared AES key.
+     - Extracts and decrypts the message using the shared AES key.
      - Displays the decrypted message to the Responder user.
-     - Prompts the Responder user to input a reply.
+     - Prompts the Responder user to input a reply message.
      - Encrypts the reply using the shared AES key with AES-GCM and appends a SHA-256 checksum.
-     - Embeds the encrypted reply with the checksum and session ID into a DHCP Discover packet.
-     - Generates a checksum for the encrypted reply.
-     - Fragments and embeds the encrypted reply with the checksum and session ID into the DHCP Ack packet.
+     - Embeds the encrypted reply with the checksum and session ID into a new DHCP Discover packet.
      - Sends the DHCP Discover packet containing the encrypted reply.
 
 3. **Finalization:**
@@ -82,75 +83,80 @@ Steganography refers to hiding secrets in plain sight, and **DHushCP** does this
      - Receives the encrypted DHCP Discover packet containing the Responder's reply.
      - Decrypts the reply using the shared AES key.
      - Displays the decrypted reply message to the Initiator user.
-     - Upon request, performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
+     - Upon request (`Ctrl+C`), performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
    
    - **Responder:**
-     - Receives the DHCP Discover sent by the Initiator.
-     - Upon request, performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
+     - Upon request (`Ctrl+C`), performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
 
 ## 🕵️ **Example Use Case for DHushCP**
 
 #### **Scenario: Covert Communication in a Public Space**
 
-Imagine a scenario where two individuals (Alice and Bob) need to communicate covertly while being in a public space, such as a coffee shop. They both arrive separately and sit at different tables, appearing to be independent customers. They do not connect to the public Wi-Fi network, but their laptops are within wireless range of each other.
+Imagine a scenario where two individuals (Alice and Bob) need to communicate covertly while being in a public space, such as a coffee shop. 
+
+They both arrive separately and sit at different tables, appearing to be independent customers. They do not connect to the public Wi-Fi network, but their laptops are within wireless range of each other.
 
 #### **Problem**
 Alice and Bob need to exchange a crucial message without using any messaging app, or creating any obvious network link or visible ad-hoc connection that could attract attention and be easily detected by anyone monitoring the network.
 
 🔴 **Prerequisites:**
-- Prior to their arrival, Alice and Bob **should already know** the DHUSHCP_ID they're going to use *and* who's going to run the Initiator and the Responder, respectively.
-- Ensure that the DHUSHCP_ID is communicated securely between the users before initiating communication. Use a strong, unpredictable identifier (e.g. 'n1c3_w3ath3r_eh?').
+- Prior to their arrival, Alice and Bob **should already know** the DHUSHCP_ID they're going to use *and* who's going to run the **Initiator** and the **Responder**, respectively.
+- They ensure that the DHUSHCP_ID is communicated **securely** between them before initiating the communication. Use a strong, unpredictable identifier (e.g. `n1c3_w3ath3r_eh?`).
 
 #### **Solution: Using DHushCP for Covert Communication**
 
 1. **Step 1: Bob Starts the DHushCP Responder**
    - Bob runs the **DHushCP** Responder script on his laptop, listening for a Discover packet from Alice.
-   - His Responder listens for DHCP Discover packets that contain a special identifier (DHushCP-ID, option 224) set by **DHushCP**.
+   - His Responder listens for DHCP Discover packets that contain the identifier (DHUSHCP_ID, option 224) set with **--id DHUSHCP_ID**.
    - This ensures that his Responder only responds to legitimate DHushCP Initiator packets and ignores other DHCP traffic.
 
 2. **Step 2: Alice Starts the DHushCP Initiator**
-   - Alice runs the **DHushCP** Initiator on her laptop.
-   - Her Initiator sends a DHCP Discover packet that contains her public ECC key, along with the DHushCP-ID (option 224) and a unique session ID (option 225).
+   - Alice runs the **DHushCP** Initiator on her laptop, with the same value for **--id DHUSHCP_ID**.
+   - Her Initiator sends a DHCP Discover packet that contains her public ECC key, along with the DHUSHCP_ID (option 224) and a unique session ID (option 225).
    - This packet is **broadcast** in the local wireless network range.
 
 3. **Step 3: Key Exchange and Secure Communication**
-   - Responder:
+   - **Responder**:
      - Receives Alice's DHCP Discover packet.
      - Extracts the session ID and reassembles Alice's public ECC key.
      - Generates its own ECC key pair.
-     - Fragments and embeds its public ECC key, DHushCP-ID, and the extracted session ID into a DHCP Discover packet.
+     - Embeds its public ECC key, the DHUSHCP_ID, and the extracted session ID into a new DHCP Discover packet.
      - Sends the DHCP Discover packet.
    
-   - Initiator:
+   - **Initiator**:
      - Receives the Responder's DHCP Discover packet.
      - Extracts and reassembles the Responder's public ECC key.
      - Derives the shared AES key using her private ECC key and the Responder's public ECC key.
      - Prompts the user to input a message (e.g., "Meet at the corner at 2 PM").
      - Encrypts the message using the shared AES key with AES-GCM and appends a SHA-256 checksum.
-     - Fragments and embeds the encrypted message with the checksum and session ID into a DHCP Discover packet.
+     - Embeds the encrypted message with the checksum and session ID into a new DHCP Discover packet.
      - Sends the DHCP Discover packet containing the encrypted message to the Responder.
 
 4. **Step 4: Receiving and Responding to Messages**
-   - Responder:
+   - **Responder**:
      - Receives the encrypted DHCP Discover packet from Alice.
-     - Reassembles and decrypts the message using the shared AES key.
+     - Decrypts the message using the shared AES key.
      - Displays the decrypted message to Bob.
      - Prompts Bob to input a reply (e.g., "Understood. See you there.").
      - Encrypts the reply using the shared AES key with AES-GCM and appends a SHA-256 checksum.
-     - Fragments and embeds the encrypted reply with the checksum and session ID into a DHCP Discover packet.
+     - Embeds the encrypted reply with the checksum and session ID into a new DHCP Discover packet.
      - Sends the DHCP Discover packet containing the encrypted reply back to Alice.
+     - Upon request, performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
    
-   - Initiator:
+   - **Initiator**:
      - Receives the encrypted DHCP Discover packet containing Bob's reply.
-     - Reassembles and decrypts the reply using the shared AES key.
+     - Decrypts the reply using the shared AES key.
      - Displays the decrypted reply message to Alice.
-     - Performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
+     - Upon request, performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
 
 #### **Why This Setup Is Effective**
 - The entire exchange happens within **standard DHCP Discover packets**, blending into regular network traffic.
-- There is centralized app or devices, **no visible Wi-Fi connection** or direct link between Alice and Bob.
+- There is no centralized app or devices, **no visible Wi-Fi connection** or direct link between Alice and Bob.
 - After the communication ends, both laptops securely delete the ECC keys, system logs and clear the terminal.
 - Useful when Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
+
+#### **Additional Recommendation**
+- Prior to running the Initiator or the Responder, disable shell history using `set +o history`, then enable it when the communication is ended using `set +o history`.
 
 ### 🧮 **Available Message Space Calculation**
 
@@ -194,12 +200,18 @@ Ensure that your wireless interface is active and in the UP state.
 4. **Run the Scripts:** Both Initiator and Responder scripts require root privileges to send and sniff DHCP packets. You can run the scripts using `sudo`:
 
 **Responder:**
-`sudo python3 dhushcp_responder.py --id DHUSHCP_ID`
+```bash
+   set +o history
+   sudo python3 responder.py --id DHUSHCP_ID
+```
 
 **Initiator:**
-`sudo python3 dhushcp_initiator.py --id DHUSHCP_ID`
+```bash
+   set +o history
+   sudo python3 responder.py --id DHUSHCP_ID
+```
 
-Follow the on-screen prompts on the **Initiator** to initiate and manage the communication session. Make sure the **Responder** already listens.
+Follow the on-screen prompts on the **Initiator** to initiate and manage the communication session. Make sure the **Responder** is already listening.
 
 ## ⚠️ Disclaimer
 **DHushCP** is intended for educational and authorized security testing purposes only. Unauthorized interception or manipulation of network traffic is illegal and unethical. Users are responsible for ensuring that their use of this tool complies with all applicable laws and regulations. The developers of **DHushCP** do not endorse or support any malicious or unauthorized activities. Use this tool responsibly and at your own risk.
