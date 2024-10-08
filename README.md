@@ -27,7 +27,7 @@
 
 By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges outside existing network infrastructures without raising suspicion.
 
-**NOTE:** This is an ongoing **reasearch project** for educational purposes rather than a full-fledged production-ready tool, so treat it accordingly.
+🍀 **NOTE:** This is an ongoing **reasearch project** for educational purposes rather than a full-fledged production-ready tool, so treat it accordingly.
 
 ### 💬 TLDR; DHushCP and Steganography
 **Steganography** refers to hiding secrets in plain sight, and **DHushCP** does this two-fold:
