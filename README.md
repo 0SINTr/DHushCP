@@ -200,13 +200,13 @@ Ensure that your wireless interface is active and in the UP state.
 4. **Run the Scripts:** Both Initiator and Responder scripts require root privileges to send and sniff DHCP packets. You can run the scripts using `sudo`:
 
 **Responder:**
-```bash
+```
    set +o history
    sudo python3 responder.py --id DHUSHCP_ID
 ```
 
 **Initiator:**
-```bash
+```
    set +o history
    sudo python3 responder.py --id DHUSHCP_ID
 ```
