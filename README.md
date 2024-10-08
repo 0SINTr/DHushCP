@@ -37,7 +37,8 @@ By inserting cryptographic elements within unused DHCP options, **DHushCP** enab
   - **DHushCP** doesn't require the two hosts to route their communication through a specific network, access point or centralized app. By using plain DHCP Discover packets, the communication blends into normal traffic. Although the messages are **fully encrypted** back and forth between the two hosts, it is advisable to keep a **low number** of message exchanges per session, so that the amount of Discover packets being sent by the hosts doesn't raise any eyebrows. See the **Use Case** below for an example.
 - **It uses only DHCP Discover packets to communicate the keys and messages.**
   - At first, the use of **DHCP Discover** packets might seem strange, due to the broadcast nature of these packets. However, this obfuscates the **DHushCP** communication even more compared to even the first iteration of **DHushCP** where the two hosts were actually performing a complete *Discover - Offer - Request - Ack* sequence that was hiding the message exchange. By using DHCP Discover packets only, **DHushCP** is now stealthier since no rogue DHCP server activity can be detected by a sniffer.
-- For the sake of blending our DHCP Discover traffic into the overall traffic, keep in mind that **communication via DHushCP will not always be 100% reliable**. Since we're using broadcast messages over Wi-Fi, there's always a chance that packets can be lost due to network congestion, wireless interference, or other factors. Message retries are planned for **future versions**.
+- **Reliability of using DHCP Discover messages for the communication flow.**
+  - For the sake of blending our DHCP Discover traffic into the overall traffic, keep in mind that **communication via DHushCP will not always be 100% reliable**. Since we're using broadcast messages over Wi-Fi, there's always a chance that packets can be lost due to network congestion, wireless interference, or other factors. Message retries are planned for **future versions**.
 
 ## 🚀 Features
 
@@ -187,22 +188,19 @@ Alice and Bob need to exchange a crucial message without using any messaging app
 
 ## 🛠️ Installation & Setup
 
-1. **Clone the Repository:**
+1. **Clone the Repository:** Use the commands below in your Linux terminal.
    ```bash
    git clone https://github.com/0SINTr/DHushCP.git
    cd DHushCP
    ```
 
-2. **Install Dependencies:** Ensure you have Python 3.8 or higher installed. Then, install the required Python packages:
+2. **Install Dependencies:** Ensure you have Python 3.8 or higher installed. Then, install the required Python packages.
    ```bash
    sudo apt install python3-scapy
    sudo apt install python3-cryptography
    ```
 
-3. **Configure Wireless Interface:**
-
-Ensure that your wireless interface is active and in the UP state.
-**DHushCP** will automatically detect and prompt you to select the active interface if multiple are detected.
+3. **Configure Wireless Interface:** Ensure that your wireless interface is active and in the UP state. **DHushCP** will automatically detect and prompt you to select the active interface if multiple are detected.
 
 4. **Run the Scripts:** Both Initiator and Responder scripts require root privileges to send and sniff DHCP packets. You can run the scripts using `sudo`:
 
