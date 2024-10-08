@@ -83,10 +83,10 @@ By inserting cryptographic elements within unused DHCP options, **DHushCP** enab
      - Receives the encrypted DHCP Discover packet containing the Responder's reply.
      - Decrypts the reply using the shared AES key.
      - Displays the decrypted reply message to the Initiator user.
-     - Upon request (`Ctrl+C`), performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
+     - Upon request (`Ctrl+C`), performs cleanup by deleting encryption keys, clearing system logs (syslog, auth), and resetting the terminal.
    
    - **Responder:**
-     - Upon request (`Ctrl+C`), performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
+     - Upon request (`Ctrl+C`), performs cleanup by deleting encryption keys, clearing system logs (syslog, auth), and resetting the terminal.
 
 ## 🕵️ **Example Use Case for DHushCP**
 
@@ -156,7 +156,7 @@ Alice and Bob need to exchange a crucial message without using any messaging app
 - Useful when Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
 
 #### **Additional Recommendation**
-- Prior to running the Initiator or the Responder, disable shell history using `set +o history`, then enable it when the communication is ended using `set +o history`.
+- Prior to running the Initiator or the Responder, disable shell history using `set +o history`, then enable it when the communication is ended using `set -o history`.
 
 ### 🧮 **Available Message Space Calculation**
 
