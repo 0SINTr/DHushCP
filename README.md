@@ -16,6 +16,7 @@
   - [🧮 Available Message Space](#-available-message-space-calculation)
   - [🖥️ System Requirements](#%EF%B8%8F-system-requirements)
   - [🛠️ Installation & Setup](#%EF%B8%8F-installation--setup)
+  - [🎯 Planned Upgrades](#%EF%B8%8F-planned-upgrades)
   - [⚠️ Disclaimer](#%EF%B8%8F-disclaimer)
   - [📜 License](#-license)
 
@@ -36,6 +37,7 @@ By inserting cryptographic elements within unused DHCP options, **DHushCP** enab
   - **DHushCP** doesn't require the two hosts to route their communication through a specific network, access point or centralized app. By using plain DHCP Discover packets, the communication blends into normal traffic. Although the messages are **fully encrypted** back and forth between the two hosts, it is advisable to keep a **low number** of message exchanges per session, so that the amount of Discover packets being sent by the hosts doesn't raise any eyebrows. See the **Use Case** below for an example.
 - **It uses only DHCP Discover packets to communicate the keys and messages.**
   - At first, the use of **DHCP Discover** packets might seem strange, due to the broadcast nature of these packets. However, this obfuscates the **DHushCP** communication even more compared to even the first iteration of **DHushCP** where the two hosts were actually performing a complete *Discover - Offer - Request - Ack* sequence that was hiding the message exchange. By using DHCP Discover packets only, **DHushCP** is now stealthier since no rogue DHCP server activity can be detected by a sniffer.
+- For the sake of blending our DHCP Discover traffic into the overall traffic, keep in mind that **communication via DHushCP will not always be 100% reliable**. Since we're using broadcast messages over Wi-Fi, there's always a chance that packets can be lost due to network congestion, wireless interference, or other factors. Message retries are planned for **future versions**.
 
 ## 🚀 Features
 
@@ -217,6 +219,12 @@ Ensure that your wireless interface is active and in the UP state.
 ```
 
 Follow the on-screen prompts on the **Initiator** to initiate and manage the communication session. Make sure the **Responder** is already listening.
+
+## 🎯 Planned Upgrades
+- [ ] Message retries and acks
+- [ ] Message fragmentation
+- [ ] DER encoding vs. PEM now
+- [ ] Improved CLI experience
 
 ## ⚠️ Disclaimer
 **DHushCP** is intended for educational and authorized security testing purposes only. Unauthorized interception or manipulation of network traffic is illegal and unethical. Users are responsible for ensuring that their use of this tool complies with all applicable laws and regulations. The developers of **DHushCP** do not endorse or support any malicious or unauthorized activities. Use this tool responsibly and at your own risk.
