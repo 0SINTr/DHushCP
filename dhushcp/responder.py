@@ -358,7 +358,7 @@ def cleanup_process():
     # Clear recent system logs
     try:
         print("[INFO] Clearing system logs...")
-        log_files = ['/var/log/syslog', '/var/log/messages']
+        log_files = ['/var/log/syslog', '/var/log/auth.log']
         for log in log_files:
             if os.path.exists(log):
                 subprocess.run(['truncate', '-s', '0', log], check=True)
