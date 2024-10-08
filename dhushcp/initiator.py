@@ -412,27 +412,30 @@ def main():
         initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
 
     # Wait until shared key is established
-    while shared_key_holder['key'] is None:
-        try:
+    try:
+        while shared_key_holder['key'] is None and not stop_event.is_set():
             time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n[INFO] Interrupted by user.")
-            stop_event.set()
-            cleanup_process()
-            sys.exit(0)
+    except KeyboardInterrupt:
+        stop_event.set()
+
+    if stop_event.is_set():
+        cleanup_process()
+        sys.exit(0)
 
     # Prompt for message
     user_message = get_limited_input("Enter your message to send (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
     if user_message is None:
-        print(f"[ERROR] Reply exceeds maximum length of {MAX_MESSAGE_LENGTH} characters. Please shorten your reply.")
-        return
+        print("[INFO] No message entered or input cancelled by user.")
+        cleanup_process()
+        sys.exit(0)
 
     if user_message:
         encrypted_message = encrypt_message(shared_key_holder['key'], user_message)
         packet_options = embed_data_into_dhcp_option(encrypted_message)
         if packet_options is None:
             print("[ERROR] Failed to embed encrypted message into DHCP option.")
-            return
+            cleanup_process()
+            sys.exit(1)
         message_packet = create_dhcp_discover(session_id, DHUSHCP_ID, packet_options)
         send_dhcp_discover(message_packet, iface)
         print("[INFO] Sent encrypted message.")
@@ -443,8 +446,10 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         stop_event.set()
-        cleanup_process()
-        sys.exit(0)
+
+    # After loop exits, check if cleanup is needed
+    cleanup_process()
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
