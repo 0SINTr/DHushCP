@@ -321,7 +321,9 @@ def handle_received_dhcp(packet):
                 if plaintext:
                     print(Style.BRIGHT + Fore.GREEN + "\n[MESSAGE RECEIVED] " + Style.RESET_ALL + f"{plaintext}\n")
                     # Prompt user to reply
-                    user_reply = get_limited_input(Style.BRIGHT + "-> Enter your reply " + Style.RESET_ALL + "(or press Ctrl+C to exit and cleanup):\n", MAX_MESSAGE_LENGTH)
+                    print(Style.BRIGHT)
+                    user_reply = get_limited_input("-> Enter your reply (or press Ctrl+C to exit and cleanup):\n", MAX_MESSAGE_LENGTH)
+                    print(Style.RESET_ALL)
                     if user_reply is None:
                         print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "No reply entered, time to cleanup.")
                     if user_reply:
@@ -425,7 +427,9 @@ def main():
         sys.exit(0)
 
     # Prompt for message
-    user_message = get_limited_input(Style.BRIGHT + "\n-> Enter your message to send " + Style.RESET_ALL + "(max 100 characters, or press Ctrl+C to exit and cleanup):\n", MAX_MESSAGE_LENGTH)
+    print(Style.BRIGHT)
+    user_message = get_limited_input("\n-> Enter your message to send (max 100 characters, or press Ctrl+C to exit and cleanup):\n", MAX_MESSAGE_LENGTH)
+    print(Style.RESET_ALL)
     if user_message is None:
         print(Style.BRIGHT + "[INFO] " + Style.RESET_ALL + "No message entered or input cancelled by user.")
         cleanup_process()
