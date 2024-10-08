@@ -1,3 +1,4 @@
+![DHushCP](docs/DHushCP.png)
 # 🛡️ DHushCP: Secure Covert Communication via DHCP 🛡️
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
