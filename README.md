@@ -9,7 +9,6 @@
 - [🛡️ DHushCP: Secure Covert Communication via DHCP](#🛡️-dhushcp-secure-covert-communication-via-dhcp)
   - [🔍 Overview](#-overview)
   - [🚀 Features](#-features)
-  - [📈 Advantages](#-advantages)
   - [🔄 Communication Flow](#-communication-flow)
   - [🕵️ Example Use Case for DHushCP](#%EF%B8%8F-example-use-case-for-dhushcp)
   - [🧮 Available Message Space Calculation](#-available-message-space-calculation)
@@ -20,7 +19,7 @@
 
 ## 🔍 Overview
 
-**DHushCP** is a tool designed to facilitate **secure covert communication** between two parties - a client and server - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. **DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges over existing network infrastructures without raising suspicion.
+**DHushCP** is a tool designed to facilitate **secure covert communication** between two parties - an Initiator and Responder - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. **DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges over existing network infrastructures without raising suspicion.
 
 ### 💬 TLDR
 Steganography refers to hiding secrets in plain sight, and **DHushCP** does this two-fold:
@@ -96,7 +95,9 @@ Steganography refers to hiding secrets in plain sight, and **DHushCP** does this
 Imagine a scenario where two individuals (Alice and Bob) need to communicate covertly while being in a public space, such as a coffee shop. They both arrive separately and sit at different tables, appearing to be independent customers. They do not connect to the public Wi-Fi network, but their laptops are within wireless range of each other.
 
 #### **Problem**
-Alice and Bob need to exchange a short message without creating any obvious network link or visible ad-hoc connection that could attract attention. Using traditional messaging apps or establishing a direct Wi-Fi connection could be easily detected by anyone monitoring the network.
+Alice and Bob need to exchange a crucial message without using any messaging app, or creating any obvious network link or visible ad-hoc connection that could attract attention and be easily detected by anyone monitoring the network.
+
+Prior to their arrival, Alice and Bob should already know who's going to run the Initiator and the Responder, respectively.
 
 #### **Solution: Using DHushCP for Covert Communication**
 
@@ -143,26 +144,21 @@ Alice and Bob need to exchange a short message without creating any obvious netw
      - Displays the decrypted reply message to Alice.
      - Performs cleanup by deleting encryption keys, clearing system logs, and resetting the terminal.
 
-#### ⚠️ **One-Time Message Exchange Design**
-- **DHushCP is designed for short-form, one-time message exchanges**.
-- After each message exchange, the session is terminated, and the ECC keys are securely deleted. If further communication is needed, the process should be restarted from scratch, with **new ECC key pairs** being generated.
-- This approach maximizes security by ensuring that each communication session is unique and does not reuse any cryptographic keys.
-
 #### **Why This Setup Is Effective**
 - The entire exchange happens within **standard DHCP Discover packets**, blending into regular network traffic.
-- There is **no visible Wi-Fi connection** or direct link between Alice and Bob.
-- After the communication ends, both laptops securely delete the ECC keys, system logs and clear the terminal, leaving no traces behind.
-- This approach is useful in scenarios where Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
+- There is centralized app or devices, **no visible Wi-Fi connection** or direct link between Alice and Bob.
+- After the communication ends, both laptops securely delete the ECC keys, system logs and clear the terminal.
+- Useful when Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
 
 ### 🧮 **Available Message Space Calculation**
 
-- **Total Usable Space Across 4 DHCP Options:** 1,004 bytes
-- **RSA Encryption Overhead (4 blocks):** 1,024 bytes
-- **Plaintext Capacity (4 blocks × 190 bytes):** 760 bytes
-- **Checksum Size:** 32 bytes
-- **Available Message Space:** 760 bytes - 32 bytes = **728 bytes**
+- **Total Usable Space In DHCP Option:** 255 bytes
+- **AES-GCM Encryption Overhead (Nonce):** 12 bytes
+- **AES-GCM Encryption Overhead (AuthTag):** 16 bytes
+- **SHA-256 Checksum Size:** 32 bytes
+- **Available Message Space:** 255 bytes - 60 bytes = **195 bytes**
 
-As a result, the current limit for messages is **500 characters**.
+**NOTE!** The current limit for messages is **100 characters**.
 
 ## 🖥️ System Requirements
 
@@ -178,7 +174,7 @@ As a result, the current limit for messages is **500 characters**.
 
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/yourusername/DHushCP.git
+   git clone https://github.com/0SINTr/DHushCP.git
    cd DHushCP
    ```
 
@@ -191,17 +187,17 @@ As a result, the current limit for messages is **500 characters**.
 3. **Configure Wireless Interface:**
 
 Ensure that your wireless interface is active and in the UP state.
-The scripts will automatically detect and prompt you to select the active interface if multiple are detected.
+**DHushCP** will automatically detect and prompt you to select the active interface if multiple are detected.
 
-4. **Run the Scripts:** Both client and server scripts require root privileges to send and sniff DHCP packets. You can run the scripts using `sudo`:
+4. **Run the Scripts:** Both Initiator and Responder scripts require root privileges to send and sniff DHCP packets. You can run the scripts using `sudo`:
 
-**Server:**
-`sudo python3 server.py`
+**Responder:**
+`sudo python3 dhushcp_responder.py --id "our_secret_id"`
 
-**Client:**
-`sudo python3 client.py`
+**Initiator:**
+`sudo python3 dhushcp_initiator.py --id "our_secret_id"`
 
-Follow the on-screen prompts to initiate and manage the communication session.
+Follow the on-screen prompts on the **Initiator** to initiate and manage the communication session. Make sure the **Responder** already listens.
 
 ## ⚠️ Disclaimer
 **DHushCP** is intended for educational and authorized security testing purposes only. Unauthorized interception or manipulation of network traffic is illegal and unethical. Users are responsible for ensuring that their use of this tool complies with all applicable laws and regulations. The developers of **DHushCP** do not endorse or support any malicious or unauthorized activities. Use this tool responsibly and at your own risk.

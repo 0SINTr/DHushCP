@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-import subprocess
 import os
-import sys
-import uuid
 import gc
-import threading
+import sys
 import time
+import uuid
+import argparse
+import threading
+import subprocess
 from scapy.all import *
 from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import IP, UDP
@@ -33,10 +34,9 @@ except ImportError:
 DHCP_OPTION_ID = 224       # Custom DHCP option ID for DHushCP
 SESSION_ID_OPTION = 225    # DHCP option for Session ID
 DATA_OPTION = 226          # DHCP option for embedding data
+DHUSHCP_ID = None          # Will be set in main()
 
-DHUSHCP_ID = b'DHushCP-ID'  # Identifier to recognize DHushCP packets
-MAX_MESSAGE_LENGTH = 100  # Maximum message length in characters
-
+MAX_MESSAGE_LENGTH = 100    # Maximum message length in characters
 MAX_DHCP_OPTION_DATA = 255  # Maximum data per DHCP option
 AES_KEY_SIZE = 32           # 256 bits for AES-256
 NONCE_SIZE = 12             # 96 bits for AES-GCM nonce
@@ -265,6 +265,7 @@ def initiate_key_exchange(iface, session_id, dhushcp_id, private_key):
 
 def handle_received_dhcp(packet):
     """Handle received DHCP Discover packets."""
+    global DHUSHCP_ID
     if DHCP in packet and packet[DHCP].options:
         dhcp_options = packet[DHCP].options
         option_dict = {opt[0]: opt[1] for opt in dhcp_options if isinstance(opt, tuple)}
@@ -361,9 +362,20 @@ def cleanup_process():
     except Exception as e:
         print(f"[ERROR] Failed to clear the terminal: {e}")
 
-def main():
-    global iface, session_id, private_key, public_key, shared_key_holder, own_mac
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='DHushCP Script')
+    parser.add_argument('-i', '--id', type=str, required=True,
+                        help='Unique DHushCP identifier (shared secret between users)')
+    args = parser.parse_args()
+    return args
 
+def main():
+    global iface, session_id, private_key, public_key, shared_key_holder, own_mac, DHUSHCP_ID
+
+    # Parse command-line arguments
+    args = parse_arguments()
+    DHUSHCP_ID = args.id.encode('utf-8')
+    
     check_sudo()
     iface = get_wireless_interface()
     own_mac = get_if_hwaddr(iface)
