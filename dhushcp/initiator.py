@@ -319,7 +319,7 @@ def handle_received_dhcp(packet):
                     return
                 plaintext = decrypt_message(shared_key_holder['key'], assembled_data)
                 if plaintext:
-                    print(Style.BRIGHT + Fore.GREEN + "\n[MESSAGE RECEIVED] " + Style.RESET_ALL + f"{plaintext}")
+                    print(Style.BRIGHT + Fore.GREEN + "\n[MESSAGE RECEIVED] " + Style.RESET_ALL + f"{plaintext}\n")
                     # Prompt user to reply
                     user_reply = get_limited_input("-> Enter your reply (or press Ctrl+C to exit and cleanup):\n", MAX_MESSAGE_LENGTH)
                     if user_reply is None:
