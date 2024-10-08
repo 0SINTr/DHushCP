@@ -108,7 +108,7 @@ Alice and Bob need to exchange a crucial message without using any messaging app
 1. **Step 1: Bob Starts the DHushCP Responder**
    - Bob runs the **DHushCP** Responder script on his laptop, listening for a Discover packet from Alice.
    - His Responder listens for DHCP Discover packets that contain the identifier (DHUSHCP_ID, option 224) set with **--id DHUSHCP_ID**.
-   - This ensures that his Responder only responds to legitimate DHushCP Initiator packets and ignores other DHCP traffic.
+   - This ensures that his Responder only responds to legitimate **DHushCP** Initiator packets and ignores other DHCP traffic.
 
 2. **Step 2: Alice Starts the DHushCP Initiator**
    - Alice runs the **DHushCP** Initiator on her laptop, with the same value for **--id DHUSHCP_ID**.
