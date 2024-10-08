@@ -97,6 +97,7 @@ def check_sudo():
         sys.exit(1)
 
 def get_limited_input(prompt_message, max_length):
+    global stop_event  # Make sure stop_event is accessible
     session = PromptSession()
     bindings = KeyBindings()
 
@@ -133,6 +134,7 @@ def get_limited_input(prompt_message, max_length):
         return None
     except (EOFError, KeyboardInterrupt):
         print("\n[INFO] Input cancelled by user.")
+        stop_event.set()  # Signal other threads to stop
         return None
 
 def generate_ecc_keypair():
@@ -318,7 +320,9 @@ def handle_received_dhcp(packet):
                 if plaintext:
                     print(f"\n[MESSAGE] {plaintext}\n")
                     # Prompt user to reply
-                    user_reply = input("Enter your reply (or press Ctrl+C to exit and cleanup): ").strip()
+                    user_reply = get_limited_input("Enter your reply (or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
+                    if user_reply is None:
+                        print("[INFO] No reply entered or input cancelled by user. Use Ctrl+C to exit.")
                     if user_reply:
                         encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
                         packet_options = embed_data_into_dhcp_option(encrypted_reply)
@@ -374,7 +378,7 @@ def parse_arguments():
     return args
 
 def main():
-    global iface, session_id, private_key, public_key, shared_key_holder, own_mac, DHUSHCP_ID
+    global iface, session_id, private_key, public_key, shared_key_holder, own_mac, DHUSHCP_ID, stop_event
 
     # Parse command-line arguments
     args = parse_arguments()
@@ -435,7 +439,7 @@ def main():
 
     # Keep the script running to listen for incoming messages
     try:
-        while True:
+        while not stop_event.is_set():
             time.sleep(1)
     except KeyboardInterrupt:
         stop_event.set()

@@ -329,8 +329,7 @@ def handle_received_dhcp(packet):
                     user_reply = get_limited_input("Enter your reply (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
                     if user_reply is None:
                         print(f"[ERROR] Reply exceeds maximum length of {MAX_MESSAGE_LENGTH} characters. Please shorten your reply.")
-                        return
-                    
+                        return               
                     if user_reply:
                         encrypted_reply = encrypt_message(shared_key_holder[session_id]['key'], user_reply)
                         packet_options = embed_data_into_dhcp_option(encrypted_reply)
@@ -392,10 +391,10 @@ def main():
     check_sudo()
     iface = get_wireless_interface()
     own_mac = get_if_hwaddr(iface)
-    print("[INFO] Responder is now listening for DHCP Discover packets...")
 
     private_key, public_key = generate_ecc_keypair()
     print("[INFO] Generated ECC key pair.")
+    print("[INFO] Responder is now listening for DHCP Discover packets...")
 
     shared_key_holder = {}  # To hold the derived shared keys per session_id
 
