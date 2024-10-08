@@ -1,13 +1,14 @@
 ![DHushCP](docs/DHushCP.png)
-# 🛡️ DHushCP: Secure Covert Communication via DHCP 🛡️
+# 🛡️ DHushCP: Covert Communication via DHCP 🛡️
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)
+[![Stable Release](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/0SINTr/DHushCP/releases/tag/v0.2.0)
 [![Last Commit](https://img.shields.io/github/last-commit/0SINTr/DHushCP)](https://github.com/0SINTr/DHushCP/commits/main/)
 
 ## 📖 Table of Contents
 
-- [🛡️ DHushCP: Secure Covert Communication via DHCP](#🛡️-dhushcp-secure-covert-communication-via-dhcp)
+- [🛡️ DHushCP: Covert Communication via DHCP](#🛡️-dhushcp-secure-covert-communication-via-dhcp)
   - [🔍 Overview](#-overview)
   - [🚀 Features](#-features)
   - [🔄 Communication Flow](#-communication-flow)
@@ -20,9 +21,9 @@
 
 ## 🔍 Overview
 
-**DHushCP** is a Linux tool designed to facilitate **secure covert communication** between two parties - an Initiator and a Responder - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. 
+**DHushCP** is a Linux tool designed to facilitate **secure covert wireless communication** between two parties - an Initiator and a Responder - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. 
 
-**DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within DHCP protocol fields that are not commonly inspected, such as Option 226. 
+**DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within DHCP protocol fields that are not commonly inspected, such as Options 224, 225, 226. 
 
 By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges outside existing network infrastructures without raising suspicion.
 
