@@ -26,7 +26,7 @@ try:
     from prompt_toolkit.key_binding import KeyBindings
 except ImportError:
     print("[ERROR] The 'prompt_toolkit' library is required for this script to run.")
-    print("Please install it using 'sudo apt install python3-prompt-toolkit'")
+    print("[INFO] Please install it using 'sudo apt install python3-prompt-toolkit'")
     sys.exit(1)
 
 # ==============================
@@ -59,41 +59,41 @@ def get_wireless_interface():
         interfaces = [line.split()[1] for line in lines if "Interface" in line]
 
         if not interfaces:
-            print("No wireless interface found. Exiting.")
+            print("[ERROR] No wireless interface found. Exiting.")
             sys.exit(1)
 
         if len(interfaces) > 1:
-            print("Multiple wireless interfaces detected. Please choose one:")
+            print("[INPUT] Multiple wireless interfaces detected. Please choose one:")
             for idx, iface in enumerate(interfaces):
                 print(f"{idx + 1}. {iface}")
             try:
-                choice = int(input("Enter the number corresponding to your choice: ")) - 1
+                choice = int(input("[INPUT] Enter the number corresponding to your choice: ")) - 1
                 if choice < 0 or choice >= len(interfaces):
-                    print("Invalid selection. Exiting.")
+                    print("[ERROR] Invalid selection. Exiting.")
                     sys.exit(1)
                 selected_interface = interfaces[choice]
             except ValueError:
-                print("Invalid input. Please enter a number.")
+                print("[ERROR] Invalid input. Please enter a number.")
                 sys.exit(1)
         else:
             selected_interface = interfaces[0]
-            print(f"Detected wireless interface: {selected_interface}")
+            print(f"[INFO] Detected wireless interface: {selected_interface}")
 
         # Check if the interface is UP
         state_check = subprocess.run(['ip', 'link', 'show', selected_interface], capture_output=True, text=True)
         if "state UP" in state_check.stdout:
             return selected_interface
         else:
-            print(f"Interface {selected_interface} is DOWN. Please bring it UP before running the script.")
+            print(f"[ERROR] Interface {selected_interface} is DOWN. Please bring it UP before running the script.")
             sys.exit(1)
     except Exception as e:
-        print(f"Failed to detect wireless interface: {e}")
+        print(f"[ERROR] Failed to detect wireless interface: {e}")
         sys.exit(1)
 
 def check_sudo():
     """Ensure the script is run with sudo privileges."""
     if os.geteuid() != 0:
-        print("This script requires sudo privileges. Please run it with `sudo`.")
+        print("[INFO] This script requires sudo privileges. Please run it with `sudo`.")
         sys.exit(1)
 
 def get_limited_input(prompt_message, max_length):
@@ -199,7 +199,7 @@ def decrypt_message(aes_key, encrypted_package):
         calculated_checksum = digest.finalize()
 
         if calculated_checksum != received_checksum:
-            print("[ERROR] Checksum verification failed! Message integrity compromised.")
+            print("<SAFETY> Checksum verification failed! Message integrity compromised.")
             return None
 
         return plaintext
@@ -322,7 +322,7 @@ def handle_received_dhcp(packet):
                     # Prompt user to reply
                     user_reply = get_limited_input("Enter your reply (or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
                     if user_reply is None:
-                        print("[INFO] No reply entered or input cancelled by user. Use Ctrl+C to exit.")
+                        print("[INFO] No reply entered, time to cleanup.")
                     if user_reply:
                         encrypted_reply = encrypt_message(shared_key_holder['key'], user_reply)
                         packet_options = embed_data_into_dhcp_option(encrypted_reply)
@@ -384,11 +384,12 @@ def main():
     args = parse_arguments()
     DHUSHCP_ID = args.id.encode('utf-8')
     
+    print("<SAFETY> Use Ctrl+C at any time to initiate cleanup and exit.")
     check_sudo()
     iface = get_wireless_interface()
     own_mac = get_if_hwaddr(iface)
     session_id = generate_session_id()
-    print(f"[INFO] Session ID: {session_id.hex()}")
+    #print(f"[INFO] Session ID: {session_id.hex()}")
 
     private_key, public_key = generate_ecc_keypair()
     print("[INFO] Generated ECC key pair.")
@@ -404,10 +405,10 @@ def main():
     )
     listener_thread.daemon = True
     listener_thread.start()
-    print("[INFO] Initiator is now listening for DHCP Discover packets...")
+    print("[INFO] Initiator will listen for DHCP Discover packets.")
 
     # Initiator prompts to initiate communication
-    choice = input("Do you want to initiate communication? (y/n): ").strip().lower()
+    choice = input("\n[INPUT] Do you want to initiate communication? (y/n): ").strip().lower()
     if choice == 'y':
         initiate_key_exchange(iface, session_id, DHUSHCP_ID, private_key)
 
@@ -423,7 +424,7 @@ def main():
         sys.exit(0)
 
     # Prompt for message
-    user_message = get_limited_input("Enter your message to send (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
+    user_message = get_limited_input("\nEnter your message to send (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
     if user_message is None:
         print("[INFO] No message entered or input cancelled by user.")
         cleanup_process()
