@@ -1,7 +1,6 @@
 ![DHushCP](docs/DHushCP.png)
 # 🛡️ DHushCP: Covert Communication via DHCP 🛡️
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)
 [![Stable Release](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/0SINTr/DHushCP/releases/tag/v0.2.0)
 [![Last Commit](https://img.shields.io/github/last-commit/0SINTr/DHushCP)](https://github.com/0SINTr/DHushCP/commits/main/)
@@ -16,7 +15,7 @@
   - [🧮 Available Message Space](#-available-message-space-calculation)
   - [🖥️ System Requirements](#%EF%B8%8F-system-requirements)
   - [🛠️ Installation & Setup](#%EF%B8%8F-installation--setup)
-  - [🎯 Planned Upgrades](#%EF%B8%8F-planned-upgrades)
+  - [🎯 Planned Upgrades](#-planned-upgrades)
   - [⚠️ Disclaimer](#%EF%B8%8F-disclaimer)
   - [📜 License](#-license)
 
@@ -159,11 +158,11 @@ Alice and Bob need to exchange a crucial message without using any messaging app
 #### **Why This Setup Is Effective**
 - The entire exchange happens within **standard DHCP Discover packets**, blending into regular network traffic.
 - There is no centralized app or devices, **no visible Wi-Fi connection** or direct link between Alice and Bob.
-- After the communication ends, both laptops securely delete the ECC keys, system logs and clear the terminal.
-- Useful when Alice and Bob want to avoid suspicion and keep their presence discreet while exchanging critical information.
+- After the communication ends, both laptops **securely delete** the ECC keys, system logs and clear the terminal.
+- Useful when Alice and Bob want to avoid suspicion and keep their presence discreet while **exchanging critical information**.
 
 #### **Additional Recommendation**
-- Prior to running the Initiator or the Responder, disable shell history using `set +o history`, then enable it when the communication is ended using `set -o history`.
+- Prior to running the Initiator or the Responder, **disable shell history** using `set +o history`, then enable it when the communication is ended using `set -o history`.
 
 ### 🧮 **Available Message Space Calculation**
 
