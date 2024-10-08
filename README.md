@@ -23,12 +23,12 @@
 **DHushCP** is a tool designed to facilitate **secure covert communication** between two parties - a client and server - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. **DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within protocol fields that are not commonly inspected. By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges over existing network infrastructures without raising suspicion.
 
 ### TLDR
-Steganography refers to hiding secrets in plain sight, and *DHushCP** does this two-fold:
+Steganography refers to hiding secrets in plain sight, and **DHushCP** does this two-fold:
 
-- It hides an encrypted message sent from A to B in an unused DHCP option field.
-  - **DHushCP** doesn't require the two hosts to route their communication through a specific network, access point or centralized app. By using plain DHCP packets, the communication blends into normal traffic. Although the messages are fully encrypted back and forth between the two hosts, it is advisable to keep a low number of message exchanges per session, so that the amount of Discover packets being sent by the hosts doesn't raise any eyebrows. See the Use Case below for an example.
-- It uses only DHCP Discover packets to communicate the keys and messages.
-  - At first, the use of DHCP Discover packets might seem strange, due to the broadcast nature of these packets. However, this obfuscates the **DHushCP** communication even more compared to even the first iteration of **DHushCP** where the two hosts were actually performing a complete Discover - Offer - Request - Ack sequence that was hiding the message exchange. By using DHCP Discover packets only, **DHushCP** is now stealthier since no rogue DHCP server activity can be detected by a sniffer.
+- **It hides an encrypted message sent from A to B in an unused DHCP option field.**
+  - **DHushCP** doesn't require the two hosts to route their communication through a specific network, access point or centralized app. By using plain DHCP packets, the communication blends into normal traffic. Although the messages are **fully encrypted** back and forth between the two hosts, it is advisable to keep a low number of message exchanges per session, so that the amount of Discover packets being sent by the hosts doesn't raise any eyebrows. See the **Use Case** below for an example.
+- **It uses only DHCP Discover packets to communicate the keys and messages.**
+  - At first, the use of DHCP Discover packets might seem strange, due to the broadcast nature of these packets. However, this obfuscates the **DHushCP** communication even more compared to even the first iteration of **DHushCP** where the two hosts were actually performing a complete *Discover - Offer - Request - Ack* sequence that was hiding the message exchange. By using DHCP Discover packets only, **DHushCP** is now stealthier since no rogue DHCP server activity can be detected by a sniffer.
 
 ## 🚀 Features
 
