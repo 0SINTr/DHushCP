@@ -275,7 +275,7 @@ def respond_key_exchange(iface, session_id, dhushcp_id, private_key, peer_public
 def handle_received_dhcp(packet):
     """Handle received DHCP Discover packets."""
     global DHUSHCP_ID
-    print(Style.BRIGHT + "[DEBUG] " + Style.RESET_ALL + "Responder received a packet.")
+    #print(Style.BRIGHT + "[DEBUG] " + Style.RESET_ALL + "Responder received a packet.")
     try:
         if DHCP in packet and packet[DHCP].options:
             dhcp_options = packet[DHCP].options
@@ -327,9 +327,9 @@ def handle_received_dhcp(packet):
                         return
                     plaintext = decrypt_message(shared_key_holder[session_id]['key'], assembled_data)
                     if plaintext:
-                        print(Style.BRIGHT + Fore.GREEN + "[MESSAGE RECEIVED] " + Style.RESET_ALL + f"{plaintext}\n")
+                        print(Style.BRIGHT + Fore.GREEN + "\n[MESSAGE RECEIVED] " + Style.RESET_ALL + f"{plaintext}\n")
                         # Prompt user to reply
-                        user_reply = get_limited_input("\n-> Enter your reply (max 100 characters, or press Ctrl+C to exit and cleanup): ", MAX_MESSAGE_LENGTH)
+                        user_reply = get_limited_input("\n-> Enter your reply (max 100 characters, or press Ctrl+C to exit and cleanup):\n", MAX_MESSAGE_LENGTH)
                         if user_reply is None:
                             print(Style.BRIGHT + "[ERROR] " + Style.RESET_ALL + f"Reply exceeds maximum length of {MAX_MESSAGE_LENGTH} characters. Please shorten your reply.")
                             return               
