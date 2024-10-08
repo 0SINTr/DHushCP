@@ -26,7 +26,7 @@ try:
     from prompt_toolkit.key_binding import KeyBindings
 except ImportError:
     print("[ERROR] The 'prompt_toolkit' library is required for this script to run.")
-    print("Please install it using 'pip3 install prompt_toolkit'")
+    print("Please install it using 'sudo apt install python3-prompt-toolkit'")
     sys.exit(1)
 
 # ==============================
@@ -126,10 +126,14 @@ def get_limited_input(prompt_message, max_length):
             validator=validator,
             validate_while_typing=False,
             key_bindings=bindings,
-            bottom_toolbar=bottom_toolbar)
+            bottom_toolbar=bottom_toolbar,
+            refresh_interval=0.5)
         return user_input
     except ValidationError:
         print(f"[ERROR] Message exceeds maximum length of {max_length} characters. Please shorten your message.")
+        return None
+    except (EOFError, KeyboardInterrupt):
+        print("\n[INFO] Input cancelled by user.")
         return None
 
 def generate_ecc_keypair():

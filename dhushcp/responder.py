@@ -25,7 +25,7 @@ try:
     from prompt_toolkit.key_binding import KeyBindings
 except ImportError:
     print("[ERROR] The 'prompt_toolkit' library is required for this script to run.")
-    print("Please install it using 'pip3 install prompt_toolkit'")
+    print("Please install it using 'sudo apt install python3-prompt-toolkit'")
     sys.exit(1)
 
 # ==============================

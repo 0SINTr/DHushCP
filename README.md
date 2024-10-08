@@ -19,7 +19,7 @@
 
 ## 🔍 Overview
 
-**DHushCP** is a tool designed to facilitate **secure covert communication** between two parties - an Initiator and a Responder - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. 
+**DHushCP** is a Linux tool designed to facilitate **secure covert communication** between two parties - an Initiator and a Responder - using standard **DHCP (Dynamic Host Configuration Protocol)** packets. 
 
 **DHushCP** utilizes principles of **network steganography** by embedding encrypted messages within DHCP protocol fields that are not commonly inspected, such as Option 226. 
 
@@ -171,6 +171,7 @@ Alice and Bob need to exchange a crucial message without using any messaging app
 ## 🖥️ System Requirements
 
 - **Operating System:** Linux-based systems (e.g., Ubuntu, Debian, Fedora)
+  - Latest release thoroughly tested and functional on **Ubuntu 24.04**.
 - **Python Version:** Python 3.8 or higher
 - **Dependencies:**
   - `scapy` for packet crafting and sniffing
