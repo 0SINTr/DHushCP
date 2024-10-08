@@ -97,7 +97,8 @@ Imagine a scenario where two individuals (Alice and Bob) need to communicate cov
 #### **Problem**
 Alice and Bob need to exchange a crucial message without using any messaging app, or creating any obvious network link or visible ad-hoc connection that could attract attention and be easily detected by anyone monitoring the network.
 
-Prior to their arrival, Alice and Bob should already know who's going to run the Initiator and the Responder, respectively.
+- Prior to their arrival, Alice and Bob **should already know** the DHUSHCP_ID they're going to use *and* who's going to run the Initiator and the Responder, respectively.
+- Ensure that the DHUSHCP_ID is communicated securely between the users before initiating communication. Use a strong, unpredictable identifier (e.g. 'n1c3_w3ath3r_eh?').
 
 #### **Solution: Using DHushCP for Covert Communication**
 
@@ -192,10 +193,10 @@ Ensure that your wireless interface is active and in the UP state.
 4. **Run the Scripts:** Both Initiator and Responder scripts require root privileges to send and sniff DHCP packets. You can run the scripts using `sudo`:
 
 **Responder:**
-`sudo python3 dhushcp_responder.py --id "our_secret_id"`
+`sudo python3 dhushcp_responder.py --id DHUSHCP_ID`
 
 **Initiator:**
-`sudo python3 dhushcp_initiator.py --id "our_secret_id"`
+`sudo python3 dhushcp_initiator.py --id DHUSHCP_ID`
 
 Follow the on-screen prompts on the **Initiator** to initiate and manage the communication session. Make sure the **Responder** already listens.
 
