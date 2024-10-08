@@ -126,8 +126,7 @@ def get_limited_input(prompt_message, max_length):
             validator=validator,
             validate_while_typing=False,
             key_bindings=bindings,
-            bottom_toolbar=bottom_toolbar,
-            refresh_interval=0.5)
+            bottom_toolbar=bottom_toolbar)
         return user_input
     except ValidationError:
         print(f"[ERROR] Message exceeds maximum length of {max_length} characters. Please shorten your message.")
