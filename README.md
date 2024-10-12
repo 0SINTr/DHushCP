@@ -18,7 +18,7 @@
   - [🎯 Planned Upgrades](#-planned-upgrades)
   - [⚠️ Disclaimer](#%EF%B8%8F-disclaimer)
   - [📜 License](#-license)
-  - [📧 Contact for Professional Collaborations](#-contact-for-professional-collaborations)
+  - [📧 Contact](#-professional-collaborations)
 
 ## 🔍 Overview
 
@@ -230,7 +230,7 @@ Follow the on-screen prompts on the **Initiator** to initiate and manage the com
 ## 📜 License
 No license is provided for this software, therefore the work is under exclusive copyright by default. Read more about what this means [here](https://choosealicense.com/no-permission/).
 
-## 📧 Contact for Professional Collaborations
+## 📧 Professional Collaborations
 
 - **Email Address**:  
   Please direct your inquiries to **sintr.0@pm.me**.
