@@ -1,15 +1,3 @@
-### Contact for Professional Collaborations
-
-- **Email Address**:  
-  Please direct your inquiries to **sintr.0@pm.me**.
-
-- **Important Guidelines**:  
-  - Use a **professional email** or a **ProtonMail** address.
-  - Keep your message **concise** and written in **English**.
-
-- **Security Notice**:  
-  Emails with **links** or **attachments** will be ignored for security reasons.
-
 ![DHushCP](docs/DHushCP.png)
 # 🛡️ DHushCP: Covert Communication via DHCP 🛡️
 
@@ -240,3 +228,15 @@ Follow the on-screen prompts on the **Initiator** to initiate and manage the com
 
 ## 📜 License
 No license is provided for this software, therefore the work is under exclusive copyright by default. Read more about what this means [here](https://choosealicense.com/no-permission/).
+
+## Contact for Professional Collaborations
+
+- **Email Address**:  
+  Please direct your inquiries to **sintr.0@pm.me**.
+
+- **Important Guidelines**:  
+  - Use a **professional email** or a **ProtonMail** address.
+  - Keep your message **concise** and written in **English**.
+
+- **Security Notice**:  
+  Emails with **links** or **attachments** will be ignored for security reasons.
