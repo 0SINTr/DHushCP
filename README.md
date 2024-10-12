@@ -1,7 +1,7 @@
-## Contact for Professional Collaborations
+### Contact for Professional Collaborations
 
 - **Email Address**:  
-  Direct your inquiries to **sintr.0@pm.me**.
+  Please direct your inquiries to **sintr.0@pm.me**.
 
 - **Important Guidelines**:  
   - Use a **professional email** or a **ProtonMail** address.
