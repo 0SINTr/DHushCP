@@ -228,7 +228,7 @@ Follow the on-screen prompts on the **Initiator** to initiate and manage the com
 **DHushCP** is intended for educational and authorized security testing purposes only. Unauthorized interception or manipulation of network traffic is illegal and unethical. Users are responsible for ensuring that their use of this tool complies with all applicable laws and regulations. The developers of **DHushCP** do not endorse or support any malicious or unauthorized activities. Use this tool responsibly and at your own risk.
 
 ## 📜 License
-No license is provided for this software, therefore the work is under exclusive copyright by default. Read more about what this means [here](https://choosealicense.com/no-permission/).
+**DHushCP** is licensed under the [GNU GENERAL PUBLIC LICENSE Version 3](https://github.com/0SINTr/DHushCP/blob/main/LICENSE.md).
 
 ## 📧 Professional Collaborations
 
