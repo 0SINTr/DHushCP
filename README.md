@@ -28,7 +28,7 @@
 
 By inserting cryptographic elements within unused DHCP options, **DHushCP** enables hidden message exchanges outside existing network infrastructures without raising suspicion.
 
-🍀 **NOTE:** This is an ongoing **reasearch project** for educational purposes rather than a full-fledged production-ready tool, so treat it accordingly.
+🍀 **NOTE:** This is an ongoing **research project** for educational purposes rather than a full-fledged production-ready tool, so treat it accordingly.
 
 ### 💬 TLDR; DHushCP and Steganography
 **Steganography** refers to hiding secrets in plain sight, and **DHushCP** does this two-fold:
@@ -219,10 +219,10 @@ Alice and Bob need to exchange a crucial message without using any messaging app
 Follow the on-screen prompts on the **Initiator** to initiate and manage the communication session. Make sure the **Responder** is already listening.
 
 ## 🎯 Planned Upgrades
+- [x] Improved CLI experience
 - [ ] Message retries and acks
 - [ ] Message fragmentation
 - [ ] DER encoding vs. PEM now
-- [ ] Improved CLI experience
 
 ## ⚠️ Disclaimer
 **DHushCP** is intended for educational and authorized security testing purposes only. Unauthorized interception or manipulation of network traffic is illegal and unethical. Users are responsible for ensuring that their use of this tool complies with all applicable laws and regulations. The developers of **DHushCP** do not endorse or support any malicious or unauthorized activities. Use this tool responsibly and at your own risk.
