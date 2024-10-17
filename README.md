@@ -7,14 +7,14 @@
 
 ## 📖 Table of Contents
 
-- [🛡️ DHushCP: Covert Communication via DHCP](#🛡️-dhushcp-secure-covert-communication-via-dhcp)
+- [🛡️ DHushCP: Covert Communication via DHCP](#%EF%B8%8F-dhushcp-covert-communication-via-dhcp-%EF%B8%8F)
   - [🔍 Overview](#-overview)
   - [🚀 Features](#-features)
   - [🔄 Communication Flow](#-communication-flow)
   - [🕵️ Example Use Case](#%EF%B8%8F-example-use-case-for-dhushcp)
   - [🧮 Available Message Space](#-available-message-space-calculation)
   - [🖥️ System Requirements](#%EF%B8%8F-system-requirements)
-  - [🛠️ Installation & Setup](#%EF%B8%8F-installation--setup)
+  - [🛠️ Installation and Setup](#%EF%B8%8F-installation-and-setup)
   - [🎯 Planned Upgrades](#-planned-upgrades)
   - [⚠️ Disclaimer](#%EF%B8%8F-disclaimer)
   - [📜 License](#-license)
