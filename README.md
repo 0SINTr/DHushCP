@@ -177,7 +177,7 @@ Alice and Bob need to exchange a crucial message without using any messaging app
 
 ## 🖥️ System Requirements
 
-- **Operating System:** Linux-based systems (e.g., Ubuntu, Debian, Fedora)
+- **Operating System:** Linux-based systems (e.g., Ubuntu, Debian, Kali)
   - Latest release thoroughly tested and functional on **Ubuntu 24.04**.
 - **Python Version:** Python 3.8 or higher
 - **Dependencies:**
