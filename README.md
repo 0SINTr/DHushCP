@@ -213,7 +213,7 @@ Alice and Bob need to exchange a crucial message without using any messaging app
 **Initiator:**
 ```
    set +o history
-   sudo python3 responder.py --id DHUSHCP_ID
+   sudo python3 initiator.py --id DHUSHCP_ID
 ```
 
 Follow the on-screen prompts on the **Initiator** to initiate and manage the communication session. Make sure the **Responder** is already listening.
